@@ -16,10 +16,15 @@ export default function PaymentList() {
   const qc = useQueryClient();
   const [status, setStatus] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [genResult, setGenResult] = useState(null);
+
+  const now = new Date();
+  const [genYear, setGenYear]   = useState(now.getFullYear());
+  const [genMonth, setGenMonth] = useState(now.getMonth() + 1);
 
   const { data, isLoading } = useQuery({
     queryKey: ['payments', status],
-    queryFn: () => api.get('/payments', { params: { status: status || undefined, limit: 50 } }).then((r) => r.data)
+    queryFn: () => api.get('/payments', { params: { status: status || undefined, limit: 100 } }).then((r) => r.data)
   });
 
   const markPaid = useMutation({
@@ -28,23 +33,42 @@ export default function PaymentList() {
   });
 
   const generateMonthly = async () => {
-    const now = new Date();
     setGenerating(true);
+    setGenResult(null);
     try {
-      await api.post('/payments/generate-monthly', { year: now.getFullYear(), month: now.getMonth() + 1 });
+      const res = await api.post('/payments/generate-monthly', { year: genYear, month: genMonth });
+      setGenResult(res.data.message);
       qc.invalidateQueries({ queryKey: ['payments'] });
+    } catch (e) {
+      setGenResult(e.response?.data?.message || 'Hata oluştu');
     } finally {
       setGenerating(false);
     }
   };
 
+  const monthNames = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Ödemeler</h1>
-        <button onClick={generateMonthly} disabled={generating} className="btn-secondary py-2 px-3 text-sm">
-          <PlusCircle size={15} /> {generating ? '...' : 'Ay Tahakkuku'}
-        </button>
+      </div>
+
+      {/* Tahakkuk paneli */}
+      <div className="card bg-blue-50 border border-blue-100 space-y-2">
+        <p className="text-xs font-semibold text-blue-700">Aylık Tahakkuk Oluştur</p>
+        <div className="flex gap-2">
+          <select className="input text-sm flex-1" value={genMonth} onChange={(e) => setGenMonth(Number(e.target.value))}>
+            {monthNames.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+          </select>
+          <select className="input text-sm w-24" value={genYear} onChange={(e) => setGenYear(Number(e.target.value))}>
+            {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <button onClick={generateMonthly} disabled={generating} className="btn-primary py-2 px-3 text-sm whitespace-nowrap">
+            <PlusCircle size={15} /> {generating ? '...' : 'Oluştur'}
+          </button>
+        </div>
+        {genResult && <p className="text-xs text-blue-700 font-medium">{genResult}</p>}
       </div>
 
       <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>

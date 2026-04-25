@@ -2,6 +2,12 @@ const { query } = require('../config/database');
 
 const list = async (req, res, next) => {
   try {
+    // Vadesi geçmiş pending ödemeleri otomatik "late" yap
+    await query(
+      `UPDATE payments SET status = 'late'
+       WHERE status = 'pending' AND due_date < CURRENT_DATE`
+    );
+
     const { status, contract_id, from_date, to_date, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     const conditions = [];
@@ -74,13 +80,16 @@ const generateMonthly = async (req, res, next) => {
     const { year, month } = req.body;
     if (!year || !month) return res.status(400).json({ success: false, message: 'year ve month gerekli' });
 
-    const dueDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const dueDate      = `${year}-${String(month).padStart(2, '0')}-01`;
+    // Ayın son günü — bu ayda başlayan sözleşmeleri de kapsar
+    const lastOfMonth  = `${year}-${String(month).padStart(2, '0')}-${new Date(year, month, 0).getDate()}`;
 
     const { rows: contracts } = await query(
       `SELECT id, monthly_rent FROM contracts
        WHERE status = 'active'
-         AND start_date <= $1::date AND end_date >= $1::date`,
-      [dueDate]
+         AND start_date <= $2::date
+         AND end_date   >= $1::date`,
+      [dueDate, lastOfMonth]
     );
 
     let created = 0;

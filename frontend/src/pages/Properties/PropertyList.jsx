@@ -62,7 +62,11 @@ export default function PropertyList() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm truncate">{p.name}</div>
-                  {p.building_name && <div className="text-xs text-gray-500">{p.building_name}</div>}
+                  {(p.city_name || p.district_name || p.building_name) && (
+                    <div className="text-xs text-gray-500">
+                      {[p.city_name, p.district_name, p.building_name].filter(Boolean).join(' / ')}
+                    </div>
+                  )}
                   {p.tenant_name && (
                     <div className="text-xs text-primary-600 mt-0.5">{p.tenant_name}</div>
                   )}

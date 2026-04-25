@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,17 +11,40 @@ export default function PropertyForm() {
   const qc = useQueryClient();
   const isEdit = Boolean(id);
 
+  const [selectedCityId, setSelectedCityId] = useState('');
+
   const { data: property, isLoading } = useQuery({
     queryKey: ['property', id],
     queryFn: () => api.get(`/properties/${id}`).then((r) => r.data),
     enabled: isEdit
   });
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { data: cities = [] } = useQuery({
+    queryKey: ['cities'],
+    queryFn: () => api.get('/locations/cities').then((r) => r.data)
+  });
+
+  const { data: districts = [] } = useQuery({
+    queryKey: ['districts', selectedCityId],
+    queryFn: () => api.get(`/locations/districts?city_id=${selectedCityId}`).then((r) => r.data),
+    enabled: Boolean(selectedCityId)
+  });
+
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
 
   useEffect(() => {
-    if (property) reset(property);
+    if (property) {
+      reset(property);
+      if (property.city_id) setSelectedCityId(String(property.city_id));
+    }
   }, [property, reset]);
+
+  const handleCityChange = (e) => {
+    const val = e.target.value;
+    setSelectedCityId(val);
+    setValue('city_id', val || null);
+    setValue('district_id', '');
+  };
 
   const mutation = useMutation({
     mutationFn: (data) =>
@@ -69,6 +92,36 @@ export default function PropertyForm() {
               <option value="for_sale">Satılık</option>
             </select>
           </div>
+        </div>
+
+        {/* Location: City / District / Neighborhood */}
+        <div>
+          <label className="label">İl</label>
+          <select
+            className="input"
+            value={selectedCityId}
+            onChange={handleCityChange}
+          >
+            <option value="">— Seçiniz —</option>
+            {cities.map((c) => (
+              <option key={c.id} value={c.id}>{c.plate_code} - {c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="label">İlçe</label>
+          <select className="input" {...register('district_id')} disabled={!selectedCityId}>
+            <option value="">— Seçiniz —</option>
+            {districts.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="label">Mahalle</label>
+          <input className="input" {...register('neighborhood')} placeholder="Mahalle adı" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

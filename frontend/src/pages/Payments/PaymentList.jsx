@@ -37,10 +37,10 @@ export default function PaymentList() {
     setGenResult(null);
     try {
       const res = await api.post('/payments/generate-monthly', { year: genYear, month: genMonth });
-      setGenResult(res.data.message);
+      setGenResult(res.message || res.data?.message || `${genMonth}/${genYear} için tahakkuk oluşturuldu`);
       qc.invalidateQueries({ queryKey: ['payments'] });
     } catch (e) {
-      setGenResult(e.response?.data?.message || 'Hata oluştu');
+      setGenResult(e?.message || 'Hata oluştu');
     } finally {
       setGenerating(false);
     }

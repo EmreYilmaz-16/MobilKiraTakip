@@ -23,7 +23,7 @@ export default function Dashboard() {
 
   if (isLoading) return <div className="flex items-center justify-center h-48 text-gray-400">Yükleniyor...</div>;
 
-  const { properties, payments, contracts, expiring_contracts, overdue_payments, recent_payments, open_maintenance } = data?.data || {};
+  const { properties, payments, contracts, expiring_contracts, overdue_payments, recent_payments, open_maintenance } = data || {};
 
   return (
     <div className="space-y-4">

@@ -47,6 +47,7 @@ export default function App() {
           <Route path="tenants/:id/edit" element={<TenantForm />} />
           <Route path="contracts" element={<ContractList />} />
           <Route path="contracts/new" element={<ContractForm />} />
+          <Route path="contracts/edit/:id" element={<ContractForm />} />
           <Route path="payments" element={<PaymentList />} />
           <Route path="expenses" element={<ExpenseList />} />
           <Route path="maintenance" element={<MaintenanceList />} />

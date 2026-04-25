@@ -43,10 +43,10 @@ function EndDateBadge({ endDateStr, status }) {
 export default function ContractList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [terminatingId, setTerminatingId] = useState(null);
+  const [terminatingContract, setTerminatingContract] = useState(null); // { id, deposit_amount }
   const [showModal, setShowModal] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
-  const [form, setForm] = useState({ termination_type: 'terminated', deposit_returned: false, deposit_return_date: '', termination_notes: '' });
+  const [form, setForm] = useState({ termination_type: 'terminated', deposit_return_amount: '', deposit_return_date: '', termination_notes: '' });
 
   const { data, isLoading } = useQuery({
     queryKey: ['contracts'],
@@ -62,17 +62,20 @@ export default function ContractList() {
 
   const terminateMutation = useMutation({
     mutationFn: ({ id, body }) => api.post(`/contracts/${id}/terminate`, body).then((r) => r.data),
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       setShowModal(false);
-      setTerminatingId(null);
+      setTerminatingContract(null);
+      if (res.damage_amount > 0) {
+        alert(res.message);
+      }
     }
   });
 
-  function openTerminate(e, id) {
+  function openTerminate(e, contract) {
     e.stopPropagation();
-    setTerminatingId(id);
-    setForm({ termination_type: 'terminated', deposit_returned: false, deposit_return_date: '', termination_notes: '' });
+    setTerminatingContract({ id: contract.id, deposit_amount: Number(contract.deposit_amount) || 0 });
+    setForm({ termination_type: 'terminated', deposit_return_amount: String(contract.deposit_amount || ''), deposit_return_date: '', termination_notes: '' });
     setShowModal(true);
   }
 
@@ -81,7 +84,7 @@ export default function ContractList() {
   }
 
   function handleTerminate() {
-    terminateMutation.mutate({ id: terminatingId, body: form });
+    terminateMutation.mutate({ id: terminatingContract.id, body: form });
   }
 
   return (
@@ -169,14 +172,26 @@ export default function ContractList() {
 
                       {/* Depozito iade durumu */}
                       {detail.status !== 'active' && (
-                        <div className="bg-gray-50 rounded-lg p-2">
+                        <div className="bg-gray-50 rounded-lg p-2 space-y-1">
                           <p className="text-xs text-gray-500 mb-1">Depozito İadesi</p>
                           {detail.deposit_returned ? (
                             <p className="text-xs text-green-600 font-semibold">
-                              ✓ İade edildi {detail.deposit_return_date ? `— ${new Date(detail.deposit_return_date).toLocaleDateString('tr-TR')}` : ''}
+                              ✓ Tam iade {detail.deposit_return_date ? `— ${new Date(detail.deposit_return_date).toLocaleDateString('tr-TR')}` : ''}
                             </p>
+                          ) : Number(detail.deposit_return_amount) > 0 ? (
+                            <div>
+                              <p className="text-xs text-yellow-600 font-semibold">
+                                ↩ Kısmi iade — ₺{Number(detail.deposit_return_amount).toLocaleString('tr-TR')} iade edildi
+                                {detail.deposit_return_date ? ` (${new Date(detail.deposit_return_date).toLocaleDateString('tr-TR')})` : ''}
+                              </p>
+                              <p className="text-xs text-red-500 font-semibold">
+                                ⚠ ₺{(Number(detail.deposit_amount) - Number(detail.deposit_return_amount)).toLocaleString('tr-TR')} hasar tazminatı gelir kaydedildi
+                              </p>
+                            </div>
                           ) : (
-                            <p className="text-xs text-orange-500 font-semibold">⚠ Henüz iade edilmedi</p>
+                            <p className="text-xs text-red-500 font-semibold">
+                              ⚠ İade edilmedi — ₺{Number(detail.deposit_amount).toLocaleString('tr-TR')} hasar tazminatı gelir kaydedildi
+                            </p>
                           )}
                         </div>
                       )}
@@ -237,7 +252,7 @@ export default function ContractList() {
                     </button>
                     {c.status === 'active' && (
                       <button
-                        onClick={(e) => openTerminate(e, c.id)}
+                        onClick={(e) => openTerminate(e, c)}
                         className="flex-1 flex items-center justify-center gap-1 text-xs bg-red-50 border border-red-200 rounded-lg py-2 text-red-500"
                       >
                         <XCircle size={13} /> Sonlandır
@@ -253,77 +268,98 @@ export default function ContractList() {
       )}
 
       {/* Sonlandırma Modalı */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={() => setShowModal(false)}>
-          <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-base font-bold text-gray-800">Sözleşmeyi Sonlandır</h2>
+      {showModal && terminatingContract && (() => {
+        const totalDeposit = terminatingContract.deposit_amount;
+        const returnVal    = form.deposit_return_amount === '' ? totalDeposit : Number(form.deposit_return_amount);
+        const damageVal    = Math.max(0, totalDeposit - returnVal);
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={() => setShowModal(false)}>
+            <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-base font-bold text-gray-800">Sözleşmeyi Sonlandır</h2>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-gray-600 block mb-1">Sonlandırma Türü</label>
-                <select
-                  className="input text-sm w-full"
-                  value={form.termination_type}
-                  onChange={(e) => setForm({ ...form, termination_type: e.target.value })}
-                >
-                  <option value="terminated">Fesih (erken)</option>
-                  <option value="expired">Doğal Sona Erme</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="dep_ret"
-                  checked={form.deposit_returned}
-                  onChange={(e) => setForm({ ...form, deposit_returned: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="dep_ret" className="text-sm text-gray-700">Depozito iade edildi</label>
-              </div>
-
-              {form.deposit_returned && (
+              <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">İade Tarihi</label>
-                  <input
-                    type="date"
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Sonlandırma Türü</label>
+                  <select
                     className="input text-sm w-full"
-                    value={form.deposit_return_date}
-                    onChange={(e) => setForm({ ...form, deposit_return_date: e.target.value })}
+                    value={form.termination_type}
+                    onChange={(e) => setForm({ ...form, termination_type: e.target.value })}
+                  >
+                    <option value="terminated">Fesih (erken)</option>
+                    <option value="expired">Doğal Sona Erme</option>
+                  </select>
+                </div>
+
+                {/* Depozito iade tutarı */}
+                {totalDeposit > 0 && (
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 block mb-1">
+                      İade Edilen Depozito <span className="text-gray-400">(toplam: ₺{totalDeposit.toLocaleString('tr-TR')})</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={totalDeposit}
+                      step="0.01"
+                      className="input text-sm w-full"
+                      placeholder={`₺${totalDeposit.toLocaleString('tr-TR')} (tam iade)`}
+                      value={form.deposit_return_amount}
+                      onChange={(e) => setForm({ ...form, deposit_return_amount: e.target.value })}
+                    />
+                    {damageVal > 0 ? (
+                      <p className="text-xs text-red-500 mt-1 font-semibold">
+                        ⚠ Hasar/eksiklik tazminatı: ₺{damageVal.toLocaleString('tr-TR')} → gelir olarak kaydedilecek
+                      </p>
+                    ) : (
+                      <p className="text-xs text-green-600 mt-1">✓ Tam iade — gelir kaydı oluşturulmayacak</p>
+                    )}
+                  </div>
+                )}
+
+                {/* İade tarihi — sadece tam veya kısmi iade varsa göster */}
+                {totalDeposit > 0 && returnVal > 0 && (
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 block mb-1">İade Tarihi</label>
+                    <input
+                      type="date"
+                      className="input text-sm w-full"
+                      value={form.deposit_return_date}
+                      onChange={(e) => setForm({ ...form, deposit_return_date: e.target.value })}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Notlar</label>
+                  <textarea
+                    className="input text-sm w-full"
+                    rows={2}
+                    placeholder="İsteğe bağlı açıklama..."
+                    value={form.termination_notes}
+                    onChange={(e) => setForm({ ...form, termination_notes: e.target.value })}
                   />
                 </div>
-              )}
-
-              <div>
-                <label className="text-xs font-medium text-gray-600 block mb-1">Notlar</label>
-                <textarea
-                  className="input text-sm w-full"
-                  rows={2}
-                  placeholder="İsteğe bağlı açıklama..."
-                  value={form.termination_notes}
-                  onChange={(e) => setForm({ ...form, termination_notes: e.target.value })}
-                />
               </div>
-            </div>
 
-            <div className="flex gap-2 pt-1">
-              <button onClick={() => setShowModal(false)} className="flex-1 border border-gray-300 rounded-lg py-2 text-sm text-gray-600">
-                İptal
-              </button>
-              <button
-                onClick={handleTerminate}
-                disabled={terminateMutation.isPending}
-                className="flex-1 bg-red-500 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50"
-              >
-                {terminateMutation.isPending ? 'İşleniyor...' : 'Sonlandır'}
-              </button>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setShowModal(false)} className="flex-1 border border-gray-300 rounded-lg py-2 text-sm text-gray-600">
+                  İptal
+                </button>
+                <button
+                  onClick={handleTerminate}
+                  disabled={terminateMutation.isPending}
+                  className="flex-1 bg-red-500 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50"
+                >
+                  {terminateMutation.isPending ? 'İşleniyor...' : 'Sonlandır'}
+                </button>
+              </div>
+              {terminateMutation.isError && (
+                <p className="text-xs text-red-500 text-center">{terminateMutation.error?.message || 'Hata oluştu'}</p>
+              )}
             </div>
-            {terminateMutation.isError && (
-              <p className="text-xs text-red-500 text-center">{terminateMutation.error?.response?.data?.message || 'Hata oluştu'}</p>
-            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

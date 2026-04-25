@@ -122,13 +122,18 @@ const update = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// Sözleşmeyi sonlandır: status güncelle + mülkü "available" yap + depozito bilgisi kaydet
+// Sözleşmeyi sonlandır: status güncelle + mülkü "available" yap + depozito mahsubu gelir kaydı
 const terminate = async (req, res, next) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
 
-    const { termination_type = 'terminated', deposit_returned = false, deposit_return_date = null, termination_notes = null } = req.body;
+    const {
+      termination_type = 'terminated',
+      deposit_return_amount = null,   // null = tam iade, 0 = hiç iade yok, X = kısmi iade
+      deposit_return_date = null,
+      termination_notes = null
+    } = req.body;
 
     // Sözleşmeyi getir
     const { rows: existing } = await client.query(
@@ -143,17 +148,35 @@ const terminate = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Sadece aktif sözleşmeler sonlandırılabilir' });
     }
 
+    const depositAmount  = Number(existing[0].deposit_amount) || 0;
+    // deposit_return_amount null gelirse tam iade varsayılır
+    const returnAmount   = deposit_return_amount !== null ? Number(deposit_return_amount) : depositAmount;
+    const damageAmount   = Math.max(0, depositAmount - returnAmount);
+    const depositReturned = returnAmount >= depositAmount;
+
     // Sözleşmeyi güncelle
     const { rows } = await client.query(
       `UPDATE contracts SET
          status = $1,
          deposit_returned = $2,
          deposit_return_date = $3,
-         termination_notes = $4,
+         deposit_return_amount = $4,
+         termination_notes = $5,
          updated_at = NOW()
-       WHERE id = $5 RETURNING *`,
-      [termination_type, deposit_returned, deposit_return_date, termination_notes, req.params.id]
+       WHERE id = $6 RETURNING *`,
+      [termination_type, depositReturned, deposit_return_date, returnAmount, termination_notes, req.params.id]
     );
+
+    // Hasar tazminatı varsa → ödeme tablosuna gelir kaydı düş (zaten tahsil edildi)
+    if (damageAmount > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      await client.query(
+        `INSERT INTO payments (contract_id, amount, due_date, payment_date, status, notes)
+         VALUES ($1, $2, $3, $3, 'paid', $4)`,
+        [req.params.id, damageAmount, today,
+         `Depozito mahsubu — hasar/eksiklik tazminatı (toplam depozito: ₺${depositAmount}, iade: ₺${returnAmount})`]
+      );
+    }
 
     // Mülkü boşa çıkar
     await client.query(
@@ -162,7 +185,14 @@ const terminate = async (req, res, next) => {
     );
 
     await client.query('COMMIT');
-    res.json({ success: true, data: rows[0] });
+    res.json({
+      success: true,
+      data: rows[0],
+      damage_amount: damageAmount,
+      message: damageAmount > 0
+        ? `Sözleşme sonlandırıldı. ₺${damageAmount.toLocaleString('tr-TR')} hasar tazminatı gelir olarak kaydedildi.`
+        : 'Sözleşme sonlandırıldı.'
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     next(err);

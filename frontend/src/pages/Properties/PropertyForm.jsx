@@ -12,6 +12,7 @@ export default function PropertyForm() {
   const isEdit = Boolean(id);
 
   const [selectedCityId, setSelectedCityId] = useState('');
+  const [selectedDistrictId, setSelectedDistrictId] = useState('');
 
   const { data: property, isLoading } = useQuery({
     queryKey: ['property', id],
@@ -36,14 +37,29 @@ export default function PropertyForm() {
     if (property) {
       reset(property);
       if (property.city_id) setSelectedCityId(String(property.city_id));
+      if (property.district_id) setSelectedDistrictId(String(property.district_id));
     }
   }, [property, reset]);
+
+  // districts yüklenince kayıtlı district_id'yi uygula
+  useEffect(() => {
+    if (districts.length > 0 && selectedDistrictId) {
+      setValue('district_id', selectedDistrictId);
+    }
+  }, [districts, selectedDistrictId, setValue]);
 
   const handleCityChange = (e) => {
     const val = e.target.value;
     setSelectedCityId(val);
+    setSelectedDistrictId('');
     setValue('city_id', val || null);
     setValue('district_id', '');
+  };
+
+  const handleDistrictChange = (e) => {
+    const val = e.target.value;
+    setSelectedDistrictId(val);
+    setValue('district_id', val || null);
   };
 
   const mutation = useMutation({
@@ -111,7 +127,12 @@ export default function PropertyForm() {
 
         <div>
           <label className="label">İlçe</label>
-          <select className="input" {...register('district_id')} disabled={!selectedCityId}>
+          <select
+            className="input"
+            value={selectedDistrictId}
+            onChange={handleDistrictChange}
+            disabled={!selectedCityId}
+          >
             <option value="">— Seçiniz —</option>
             {districts.map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>

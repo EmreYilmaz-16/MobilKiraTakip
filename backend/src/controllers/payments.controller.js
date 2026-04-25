@@ -80,20 +80,25 @@ const generateMonthly = async (req, res, next) => {
     const { year, month } = req.body;
     if (!year || !month) return res.status(400).json({ success: false, message: 'year ve month gerekli' });
 
-    const dueDate      = `${year}-${String(month).padStart(2, '0')}-01`;
+    const firstOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
     // Ayın son günü — bu ayda başlayan sözleşmeleri de kapsar
     const lastOfMonth  = `${year}-${String(month).padStart(2, '0')}-${new Date(year, month, 0).getDate()}`;
 
     const { rows: contracts } = await query(
-      `SELECT id, monthly_rent FROM contracts
+      `SELECT id, monthly_rent, COALESCE(payment_day, 1) AS payment_day FROM contracts
        WHERE status = 'active'
          AND start_date <= $2::date
          AND end_date   >= $1::date`,
-      [dueDate, lastOfMonth]
+      [firstOfMonth, lastOfMonth]
     );
 
     let created = 0;
     for (const c of contracts) {
+      // Ödeme günü: sözleşmedeki payment_day (1-28), ayda o kadar gün yoksa son güne kırp
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const day = Math.min(Number(c.payment_day), daysInMonth);
+      const dueDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
       const exists = await query(
         `SELECT id FROM payments WHERE contract_id = $1
          AND date_trunc('month', due_date) = date_trunc('month', $2::date)`,

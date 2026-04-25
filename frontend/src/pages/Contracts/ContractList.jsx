@@ -160,6 +160,10 @@ export default function ContractList() {
                             <p className="text-sm font-bold text-gray-800">₺{Number(detail.deposit_amount).toLocaleString('tr-TR')}</p>
                           </div>
                           <div className="bg-gray-50 rounded-lg p-2">
+                            <p className="text-xs text-gray-500">Ödeme Günü</p>
+                            <p className="text-sm font-bold text-gray-800">Her ayın {detail.payment_day || 1}'i</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-2">
                             <p className="text-xs text-gray-500">Artış Tipi</p>
                             <p className="text-sm font-semibold text-gray-800 capitalize">{detail.increase_type || '—'}</p>
                           </div>

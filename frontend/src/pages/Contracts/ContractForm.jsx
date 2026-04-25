@@ -18,7 +18,7 @@ export default function ContractForm() {
   });
 
   const { register, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: { increase_type: 'tüfe', deposit_amount: 0 }
+    defaultValues: { increase_type: 'tüfe', deposit_amount: 0, payment_day: 1 }
   });
 
   const mutation = useMutation({
@@ -98,6 +98,21 @@ export default function ContractForm() {
             <label className="label">Artış Oranı (%)</label>
             <input className="input" type="number" step="0.01" {...register('increase_rate')} />
           </div>
+        </div>
+
+        <div>
+          <label className="label">Kira Ödeme Günü *</label>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Her ayın</span>
+            <input
+              className="input w-20 text-center"
+              type="number"
+              min="1" max="28"
+              {...register('payment_day', { required: true, min: 1, max: 28, valueAsNumber: true })}
+            />
+            <span className="text-sm text-gray-500">'inde</span>
+          </div>
+          {errors.payment_day && <span className="text-red-500 text-xs">1-28 arası bir gün girin</span>}
         </div>
 
         <div>

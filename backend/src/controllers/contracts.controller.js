@@ -63,7 +63,8 @@ const create = async (req, res, next) => {
   try {
     await client.query('BEGIN');
     const { property_id, tenant_id, start_date, end_date, monthly_rent,
-            deposit_amount, increase_type, increase_rate, special_terms, eviction_date } = req.body;
+            deposit_amount, increase_type, increase_rate, special_terms, eviction_date,
+            payment_day } = req.body;
 
     // Çakışan aktif sözleşme kontrolü
     const conflict = await client.query(
@@ -79,11 +80,11 @@ const create = async (req, res, next) => {
 
     const { rows } = await client.query(
       `INSERT INTO contracts (property_id, tenant_id, start_date, end_date, monthly_rent,
-        deposit_amount, increase_type, increase_rate, special_terms, eviction_date)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        deposit_amount, increase_type, increase_rate, special_terms, eviction_date, payment_day)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [property_id, tenant_id, start_date, end_date, monthly_rent,
        deposit_amount || 0, increase_type || 'tüfe', increase_rate || null,
-       special_terms || null, eviction_date || null]
+       special_terms || null, eviction_date || null, payment_day || 1]
     );
 
     // Mülk durumunu "rented" yap
@@ -102,7 +103,7 @@ const create = async (req, res, next) => {
 const update = async (req, res, next) => {
   try {
     const { end_date, monthly_rent, deposit_amount, increase_type,
-            increase_rate, special_terms, eviction_date, status } = req.body;
+            increase_rate, special_terms, eviction_date, status, payment_day } = req.body;
     const { rows } = await query(
       `UPDATE contracts SET
         end_date = COALESCE($1, end_date),
@@ -112,10 +113,11 @@ const update = async (req, res, next) => {
         increase_rate = COALESCE($5, increase_rate),
         special_terms = COALESCE($6, special_terms),
         eviction_date = COALESCE($7, eviction_date),
-        status = COALESCE($8, status)
-       WHERE id = $9 RETURNING *`,
+        status = COALESCE($8, status),
+        payment_day = COALESCE($9, payment_day)
+       WHERE id = $10 RETURNING *`,
       [end_date, monthly_rent, deposit_amount, increase_type,
-       increase_rate, special_terms, eviction_date, status, req.params.id]
+       increase_rate, special_terms, eviction_date, status, payment_day || null, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Sözleşme bulunamadı' });
     res.json({ success: true, data: rows[0] });

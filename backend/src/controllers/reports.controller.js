@@ -2,8 +2,11 @@ const { query } = require('../config/database');
 
 const dashboard = async (req, res, next) => {
   try {
+    // Vadesi geçmiş pending ödemeleri otomatik late yap
+    await query(`UPDATE payments SET status = 'late' WHERE status = 'pending' AND due_date < CURRENT_DATE`);
+
     const [
-      propertyStats, paymentStats, upcomingContracts, recentPayments, maintenanceOpen
+      propertyStats, paymentStats, contractStats, upcomingContracts, overduePayments, recentPayments, maintenanceOpen
     ] = await Promise.all([
       query(`SELECT
                COUNT(*) FILTER (WHERE status = 'available') AS available,
@@ -12,10 +15,18 @@ const dashboard = async (req, res, next) => {
                COUNT(*) AS total
              FROM properties`),
       query(`SELECT
-               COALESCE(SUM(amount) FILTER (WHERE status = 'paid' AND date_trunc('month', payment_date) = date_trunc('month', NOW())), 0) AS collected_this_month,
-               COALESCE(SUM(amount) FILTER (WHERE status = 'pending' AND due_date < NOW()::date), 0) AS overdue_total,
-               COUNT(*) FILTER (WHERE status = 'pending' AND due_date < NOW()::date) AS overdue_count
+               COALESCE(SUM(amount) FILTER (WHERE status = 'paid'
+                 AND date_trunc('month', payment_date) = date_trunc('month', NOW())), 0) AS collected_this_month,
+               COALESCE(SUM(amount) FILTER (WHERE status IN ('late','pending') AND due_date < CURRENT_DATE), 0) AS overdue_total,
+               COUNT(*) FILTER (WHERE status IN ('late','pending') AND due_date < CURRENT_DATE) AS overdue_count,
+               COALESCE(SUM(amount) FILTER (WHERE status = 'pending'
+                 AND date_trunc('month', due_date) = date_trunc('month', NOW())), 0) AS pending_this_month
              FROM payments`),
+      query(`SELECT
+               COUNT(*) FILTER (WHERE status = 'active') AS active,
+               COUNT(*) FILTER (WHERE status = 'active'
+                 AND end_date BETWEEN NOW()::date AND (NOW() + INTERVAL '30 days')::date) AS expiring_soon
+             FROM contracts`),
       query(`SELECT c.id, c.end_date, c.monthly_rent,
                     p.name AS property_name,
                     t.first_name || ' ' || t.last_name AS tenant_name, t.phone
@@ -24,14 +35,26 @@ const dashboard = async (req, res, next) => {
              JOIN tenants t ON t.id = c.tenant_id
              WHERE c.status = 'active'
                AND c.end_date BETWEEN NOW()::date AND (NOW() + INTERVAL '60 days')::date
-             ORDER BY c.end_date`),
-      query(`SELECT py.*, pr.name AS property_name,
+             ORDER BY c.end_date LIMIT 5`),
+      query(`SELECT py.id, py.amount, py.due_date, py.status,
+                    pr.name AS property_name,
+                    t.first_name || ' ' || t.last_name AS tenant_name,
+                    t.phone
+             FROM payments py
+             JOIN contracts c ON c.id = py.contract_id
+             JOIN properties pr ON pr.id = c.property_id
+             JOIN tenants t ON t.id = c.tenant_id
+             WHERE py.status IN ('late','pending') AND py.due_date < CURRENT_DATE
+             ORDER BY py.due_date ASC LIMIT 10`),
+      query(`SELECT py.id, py.amount, py.due_date, py.status, py.payment_date,
+                    pr.name AS property_name,
                     t.first_name || ' ' || t.last_name AS tenant_name
              FROM payments py
              JOIN contracts c ON c.id = py.contract_id
              JOIN properties pr ON pr.id = c.property_id
              JOIN tenants t ON t.id = c.tenant_id
-             ORDER BY py.updated_at DESC LIMIT 10`),
+             WHERE py.status = 'paid'
+             ORDER BY py.payment_date DESC LIMIT 5`),
       query(`SELECT COUNT(*) AS count FROM maintenance_requests
              WHERE status IN ('open','in_progress')`)
     ]);
@@ -41,7 +64,9 @@ const dashboard = async (req, res, next) => {
       data: {
         properties: propertyStats.rows[0],
         payments: paymentStats.rows[0],
+        contracts: contractStats.rows[0],
         expiring_contracts: upcomingContracts.rows,
+        overdue_payments: overduePayments.rows,
         recent_payments: recentPayments.rows,
         open_maintenance: Number(maintenanceOpen.rows[0].count)
       }

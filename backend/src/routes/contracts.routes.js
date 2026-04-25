@@ -7,5 +7,6 @@ router.get('/', ctrl.list);
 router.get('/:id', ctrl.get);
 router.post('/', ctrl.create);
 router.put('/:id', ctrl.update);
+router.post('/:id/terminate', ctrl.terminate);
 
 module.exports = router;

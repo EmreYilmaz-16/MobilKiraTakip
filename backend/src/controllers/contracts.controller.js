@@ -122,4 +122,53 @@ const update = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { list, get, create, update };
+// Sözleşmeyi sonlandır: status güncelle + mülkü "available" yap + depozito bilgisi kaydet
+const terminate = async (req, res, next) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+
+    const { termination_type = 'terminated', deposit_returned = false, deposit_return_date = null, termination_notes = null } = req.body;
+
+    // Sözleşmeyi getir
+    const { rows: existing } = await client.query(
+      'SELECT * FROM contracts WHERE id = $1', [req.params.id]
+    );
+    if (!existing.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Sözleşme bulunamadı' });
+    }
+    if (existing[0].status !== 'active') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Sadece aktif sözleşmeler sonlandırılabilir' });
+    }
+
+    // Sözleşmeyi güncelle
+    const { rows } = await client.query(
+      `UPDATE contracts SET
+         status = $1,
+         deposit_returned = $2,
+         deposit_return_date = $3,
+         termination_notes = $4,
+         updated_at = NOW()
+       WHERE id = $5 RETURNING *`,
+      [termination_type, deposit_returned, deposit_return_date, termination_notes, req.params.id]
+    );
+
+    // Mülkü boşa çıkar
+    await client.query(
+      `UPDATE properties SET status = 'available', updated_at = NOW() WHERE id = $1`,
+      [existing[0].property_id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { list, get, create, update, terminate };

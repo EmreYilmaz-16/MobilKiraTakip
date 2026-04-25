@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, AlertTriangle } from 'lucide-react';
+import { Plus, AlertTriangle, XCircle } from 'lucide-react';
 import api from '../../api/client';
 
 const statusLabel = { active: 'Aktif', expired: 'Bitti', terminated: 'Feshedildi' };
@@ -41,10 +42,34 @@ function EndDateBadge({ endDateStr, status }) {
 
 export default function ContractList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [terminatingId, setTerminatingId] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ termination_type: 'terminated', deposit_returned: false, deposit_return_date: '', termination_notes: '' });
+
   const { data, isLoading } = useQuery({
     queryKey: ['contracts'],
     queryFn: () => api.get('/contracts', { params: { limit: 50 } }).then((r) => r.data)
   });
+
+  const terminateMutation = useMutation({
+    mutationFn: ({ id, body }) => api.post(`/contracts/${id}/terminate`, body).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      setShowModal(false);
+      setTerminatingId(null);
+    }
+  });
+
+  function openTerminate(id) {
+    setTerminatingId(id);
+    setForm({ termination_type: 'terminated', deposit_returned: false, deposit_return_date: '', termination_notes: '' });
+    setShowModal(true);
+  }
+
+  function handleTerminate() {
+    terminateMutation.mutate({ id: terminatingId, body: form });
+  }
 
   return (
     <div className="space-y-3">
@@ -75,9 +100,92 @@ export default function ContractList() {
                 <span>{new Date(c.start_date).toLocaleDateString('tr-TR')} – {new Date(c.end_date).toLocaleDateString('tr-TR')}</span>
                 <span className="font-semibold text-gray-700">₺{Number(c.monthly_rent).toLocaleString('tr-TR')}/ay</span>
               </div>
+              {c.status === 'active' && (
+                <div className="pt-1 flex justify-end">
+                  <button
+                    onClick={() => openTerminate(c.id)}
+                    className="flex items-center gap-1 text-xs text-red-500 border border-red-200 rounded px-2 py-1 hover:bg-red-50"
+                  >
+                    <XCircle size={13} /> Sonlandır
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           {!data?.length && <div className="text-center py-8 text-gray-400">Sözleşme bulunamadı</div>}
+        </div>
+      )}
+
+      {/* Sonlandırma Modalı */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={() => setShowModal(false)}>
+          <div className="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-base font-bold text-gray-800">Sözleşmeyi Sonlandır</h2>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Sonlandırma Türü</label>
+                <select
+                  className="input text-sm w-full"
+                  value={form.termination_type}
+                  onChange={(e) => setForm({ ...form, termination_type: e.target.value })}
+                >
+                  <option value="terminated">Fesih (erken)</option>
+                  <option value="expired">Doğal Sona Erme</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="dep_ret"
+                  checked={form.deposit_returned}
+                  onChange={(e) => setForm({ ...form, deposit_returned: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="dep_ret" className="text-sm text-gray-700">Depozito iade edildi</label>
+              </div>
+
+              {form.deposit_returned && (
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">İade Tarihi</label>
+                  <input
+                    type="date"
+                    className="input text-sm w-full"
+                    value={form.deposit_return_date}
+                    onChange={(e) => setForm({ ...form, deposit_return_date: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Notlar</label>
+                <textarea
+                  className="input text-sm w-full"
+                  rows={2}
+                  placeholder="İsteğe bağlı açıklama..."
+                  value={form.termination_notes}
+                  onChange={(e) => setForm({ ...form, termination_notes: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setShowModal(false)} className="flex-1 border border-gray-300 rounded-lg py-2 text-sm text-gray-600">
+                İptal
+              </button>
+              <button
+                onClick={handleTerminate}
+                disabled={terminateMutation.isPending}
+                className="flex-1 bg-red-500 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-50"
+              >
+                {terminateMutation.isPending ? 'İşleniyor...' : 'Sonlandır'}
+              </button>
+            </div>
+            {terminateMutation.isError && (
+              <p className="text-xs text-red-500 text-center">{terminateMutation.error?.response?.data?.message || 'Hata oluştu'}</p>
+            )}
+          </div>
         </div>
       )}
     </div>

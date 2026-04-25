@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const { getCities, getDistricts } = require('../controllers/locations.controller');
 
 router.get('/cities',    auth, getCities);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, AlertTriangle, XCircle } from 'lucide-react';
+import { Plus, AlertTriangle, XCircle, ChevronDown, ChevronUp, Phone, Mail, TrendingUp, FileText, CalendarClock, Banknote } from 'lucide-react';
 import api from '../../api/client';
 
 const statusLabel = { active: 'Aktif', expired: 'Bitti', terminated: 'Feshedildi' };
@@ -45,11 +45,19 @@ export default function ContractList() {
   const queryClient = useQueryClient();
   const [terminatingId, setTerminatingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
   const [form, setForm] = useState({ termination_type: 'terminated', deposit_returned: false, deposit_return_date: '', termination_notes: '' });
 
   const { data, isLoading } = useQuery({
     queryKey: ['contracts'],
     queryFn: () => api.get('/contracts', { params: { limit: 50 } }).then((r) => r.data)
+  });
+
+  // Seçili sözleşmenin detayını getir
+  const { data: detail, isLoading: detailLoading } = useQuery({
+    queryKey: ['contract-detail', expandedId],
+    queryFn: () => api.get(`/contracts/${expandedId}`).then((r) => r.data),
+    enabled: !!expandedId
   });
 
   const terminateMutation = useMutation({
@@ -61,10 +69,15 @@ export default function ContractList() {
     }
   });
 
-  function openTerminate(id) {
+  function openTerminate(e, id) {
+    e.stopPropagation();
     setTerminatingId(id);
     setForm({ termination_type: 'terminated', deposit_returned: false, deposit_return_date: '', termination_notes: '' });
     setShowModal(true);
+  }
+
+  function toggleExpand(id) {
+    setExpandedId(prev => prev === id ? null : id);
   }
 
   function handleTerminate() {
@@ -86,28 +99,151 @@ export default function ContractList() {
         <div className="space-y-2">
           {data?.map((c) => (
             <div key={c.id} className={`card space-y-1 ${contractEndColor(c.end_date, c.status)}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-semibold text-sm">{c.property_name}</div>
-                  <div className="text-xs text-gray-600">{c.tenant_name}</div>
+              {/* Tıklanabilir özet satır */}
+              <div className="cursor-pointer" onClick={() => toggleExpand(c.id)}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-semibold text-sm">{c.property_name}</div>
+                    <div className="text-xs text-gray-600">{c.tenant_name}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`badge ${statusColor[c.status]}`}>{statusLabel[c.status]}</span>
+                    <EndDateBadge endDateStr={c.end_date} status={c.status} />
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className={`badge ${statusColor[c.status]}`}>{statusLabel[c.status]}</span>
-                  <EndDateBadge endDateStr={c.end_date} status={c.status} />
+                <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                  <span>{new Date(c.start_date).toLocaleDateString('tr-TR')} – {new Date(c.end_date).toLocaleDateString('tr-TR')}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-700">₺{Number(c.monthly_rent).toLocaleString('tr-TR')}/ay</span>
+                    {expandedId === c.id ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>{new Date(c.start_date).toLocaleDateString('tr-TR')} – {new Date(c.end_date).toLocaleDateString('tr-TR')}</span>
-                <span className="font-semibold text-gray-700">₺{Number(c.monthly_rent).toLocaleString('tr-TR')}/ay</span>
-              </div>
-              {c.status === 'active' && (
-                <div className="pt-1 flex justify-end">
-                  <button
-                    onClick={() => openTerminate(c.id)}
-                    className="flex items-center gap-1 text-xs text-red-500 border border-red-200 rounded px-2 py-1 hover:bg-red-50"
-                  >
-                    <XCircle size={13} /> Sonlandır
-                  </button>
+
+              {/* Genişleyen detay paneli */}
+              {expandedId === c.id && (
+                <div className="border-t border-gray-100 pt-3 mt-2 space-y-3">
+                  {detailLoading ? (
+                    <div className="text-center text-xs text-gray-400 py-2">Yükleniyor...</div>
+                  ) : detail ? (
+                    <>
+                      {/* Kiracı bilgileri */}
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Kiracı</p>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm text-gray-700">
+                            <Phone size={13} className="text-gray-400" />
+                            <a href={`tel:${detail.tenant_phone}`} className="text-blue-600">{detail.tenant_phone}</a>
+                          </div>
+                          {detail.tenant_email && (
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <Mail size={13} className="text-gray-400" />
+                              <a href={`mailto:${detail.tenant_email}`} className="text-blue-600">{detail.tenant_email}</a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Finansal detaylar */}
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Finansal</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-gray-50 rounded-lg p-2">
+                            <p className="text-xs text-gray-500">Aylık Kira</p>
+                            <p className="text-sm font-bold text-gray-800">₺{Number(detail.monthly_rent).toLocaleString('tr-TR')}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-2">
+                            <p className="text-xs text-gray-500">Depozito</p>
+                            <p className="text-sm font-bold text-gray-800">₺{Number(detail.deposit_amount).toLocaleString('tr-TR')}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-2">
+                            <p className="text-xs text-gray-500">Artış Tipi</p>
+                            <p className="text-sm font-semibold text-gray-800 capitalize">{detail.increase_type || '—'}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-2">
+                            <p className="text-xs text-gray-500">Artış Oranı</p>
+                            <p className="text-sm font-semibold text-gray-800">{detail.increase_rate ? `%${detail.increase_rate}` : '—'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Depozito iade durumu */}
+                      {detail.status !== 'active' && (
+                        <div className="bg-gray-50 rounded-lg p-2">
+                          <p className="text-xs text-gray-500 mb-1">Depozito İadesi</p>
+                          {detail.deposit_returned ? (
+                            <p className="text-xs text-green-600 font-semibold">
+                              ✓ İade edildi {detail.deposit_return_date ? `— ${new Date(detail.deposit_return_date).toLocaleDateString('tr-TR')}` : ''}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-orange-500 font-semibold">⚠ Henüz iade edilmedi</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Özel şartlar */}
+                      {detail.special_terms && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Özel Şartlar</p>
+                          <p className="text-xs text-gray-700 bg-gray-50 rounded-lg p-2">{detail.special_terms}</p>
+                        </div>
+                      )}
+
+                      {/* Tahliye tarihi */}
+                      {detail.eviction_date && (
+                        <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded-lg p-2">
+                          <CalendarClock size={13} />
+                          <span>Tahliye tarihi: {new Date(detail.eviction_date).toLocaleDateString('tr-TR')}</span>
+                        </div>
+                      )}
+
+                      {/* Son ödemeler */}
+                      {detail.payments?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Son Ödemeler</p>
+                          <div className="space-y-1">
+                            {detail.payments.slice(0, 4).map((p) => (
+                              <div key={p.id} className="flex items-center justify-between text-xs">
+                                <span className="text-gray-600">{new Date(p.due_date).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' })}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-gray-700">₺{Number(p.amount).toLocaleString('tr-TR')}</span>
+                                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${p.status === 'paid' ? 'bg-green-100 text-green-700' : p.status === 'overdue' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {p.status === 'paid' ? 'Ödendi' : p.status === 'overdue' ? 'Gecikti' : 'Bekliyor'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Sonlandırma notu */}
+                      {detail.termination_notes && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Sonlandırma Notu</p>
+                          <p className="text-xs text-gray-700 bg-gray-50 rounded-lg p-2">{detail.termination_notes}</p>
+                        </div>
+                      )}
+                    </>
+                  ) : null}
+
+                  {/* Aksiyonlar */}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => navigate(`/contracts/edit/${c.id}`)}
+                      className="flex-1 text-xs border border-gray-300 rounded-lg py-2 text-gray-600 hover:bg-gray-50"
+                    >
+                      Düzenle
+                    </button>
+                    {c.status === 'active' && (
+                      <button
+                        onClick={(e) => openTerminate(e, c.id)}
+                        className="flex-1 flex items-center justify-center gap-1 text-xs bg-red-50 border border-red-200 rounded-lg py-2 text-red-500"
+                      >
+                        <XCircle size={13} /> Sonlandır
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

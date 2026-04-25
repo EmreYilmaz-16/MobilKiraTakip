@@ -131,9 +131,11 @@ const terminate = async (req, res, next) => {
     const {
       termination_type = 'terminated',
       deposit_return_amount = null,   // null = tam iade, 0 = hiç iade yok, X = kısmi iade
-      deposit_return_date = null,
-      termination_notes = null
+      deposit_return_date,
+      termination_notes
     } = req.body;
+    const safeReturnDate  = deposit_return_date  || null;
+    const safeNotes       = termination_notes    || null;
 
     // Sözleşmeyi getir
     const { rows: existing } = await client.query(
@@ -164,7 +166,7 @@ const terminate = async (req, res, next) => {
          termination_notes = $5,
          updated_at = NOW()
        WHERE id = $6 RETURNING *`,
-      [termination_type, depositReturned, deposit_return_date, returnAmount, termination_notes, req.params.id]
+      [termination_type, depositReturned, safeReturnDate, returnAmount, safeNotes, req.params.id]
     );
 
     // Hasar tazminatı varsa → ödeme tablosuna gelir kaydı düş (zaten tahsil edildi)

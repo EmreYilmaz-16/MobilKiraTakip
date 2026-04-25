@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import {
   Wallet, Wrench, ReceiptText, BarChart3,
-  TrendingUp, Scale, LineChart, FileCheck2
+  TrendingUp, Scale, LineChart, FileCheck2, BadgeDollarSign
 } from 'lucide-react';
 
 const menuItems = [
-  { to: '/payments',       icon: Wallet,      label: 'Ödemeler',        bg: 'bg-blue-50',   text: 'text-blue-600' },
+  { to: '/payments',       icon: Wallet,         label: 'Ödemeler',        bg: 'bg-blue-50',   text: 'text-blue-600' },
+  { to: '/income',         icon: BadgeDollarSign, label: 'Gelirler',        bg: 'bg-emerald-50', text: 'text-emerald-600' },
   { to: '/maintenance',    icon: Wrench,       label: 'Bakım/Arıza',     bg: 'bg-orange-50', text: 'text-orange-600' },
   { to: '/expenses',       icon: ReceiptText,  label: 'Giderler',        bg: 'bg-red-50',    text: 'text-red-600' },
   { to: '/reports',        icon: BarChart3,    label: 'Raporlar',        bg: 'bg-purple-50', text: 'text-purple-600' },

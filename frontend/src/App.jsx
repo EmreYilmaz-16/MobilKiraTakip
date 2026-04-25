@@ -17,6 +17,7 @@ import MonthlyReport from './pages/Reports/MonthlyReport';
 import LawyerList from './pages/Lawyers/LawyerList';
 import MarketPriceList from './pages/MarketPrices/MarketPriceList';
 import TaxList from './pages/Taxes/TaxList';
+import IncomeList from './pages/Income/IncomeList';
 import MoreMenu from './pages/More/MoreMenu';
 
 const PrivateRoute = ({ children }) => {
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="lawyers" element={<LawyerList />} />
           <Route path="market-prices" element={<MarketPriceList />} />
           <Route path="taxes" element={<TaxList />} />
+          <Route path="income" element={<IncomeList />} />
           <Route path="more" element={<MoreMenu />} />
         </Route>
       </Routes>

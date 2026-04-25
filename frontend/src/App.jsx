@@ -13,6 +13,11 @@ import PaymentList from './pages/Payments/PaymentList';
 import ExpenseList from './pages/Expenses/ExpenseList';
 import MaintenanceList from './pages/Maintenance/MaintenanceList';
 import Reports from './pages/Reports/Reports';
+import MonthlyReport from './pages/Reports/MonthlyReport';
+import LawyerList from './pages/Lawyers/LawyerList';
+import MarketPriceList from './pages/MarketPrices/MarketPriceList';
+import TaxList from './pages/Taxes/TaxList';
+import MoreMenu from './pages/More/MoreMenu';
 
 const PrivateRoute = ({ children }) => {
   const token = useAuthStore((s) => s.token);
@@ -45,6 +50,11 @@ export default function App() {
           <Route path="expenses" element={<ExpenseList />} />
           <Route path="maintenance" element={<MaintenanceList />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="monthly-report" element={<MonthlyReport />} />
+          <Route path="lawyers" element={<LawyerList />} />
+          <Route path="market-prices" element={<MarketPriceList />} />
+          <Route path="taxes" element={<TaxList />} />
+          <Route path="more" element={<MoreMenu />} />
         </Route>
       </Routes>
     </BrowserRouter>

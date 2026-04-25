@@ -42,6 +42,34 @@ const login = async (req, res, next) => {
   }
 };
 
+// Sadece admin rolüdeki kullanıcılar yeni kullanıcı oluşturabilir
+const register = async (req, res, next) => {
+  try {
+    const { name, email, password, role, phone } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Ad, email ve şifre zorunlu' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ success: false, message: 'Şifre en az 8 karakter olmalı' });
+    }
+    const validRoles = ['owner', 'accountant', 'agent', 'admin'];
+    const assignedRole = validRoles.includes(role) ? role : 'owner';
+
+    const hash = await bcrypt.hash(password, 12);
+    const { rows } = await query(
+      `INSERT INTO users (name, email, password, role, phone)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, email, role, phone, created_at`,
+      [name.trim(), email.toLowerCase().trim(), hash, assignedRole, phone || null]
+    );
+
+    res.status(201).json({ success: true, data: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const me = async (req, res, next) => {
   try {
     const { rows } = await query(
@@ -76,4 +104,4 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-module.exports = { login, me, changePassword };
+module.exports = { login, register, me, changePassword };

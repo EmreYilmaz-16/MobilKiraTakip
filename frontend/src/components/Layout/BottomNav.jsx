@@ -1,13 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Building2, Users, FileText, Wallet, Wrench } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, FileText, Wallet, Grid3X3 } from 'lucide-react';
 
 const items = [
-  { to: '/', icon: LayoutDashboard, label: 'Ana Sayfa' },
-  { to: '/properties', icon: Building2, label: 'Mülkler' },
-  { to: '/tenants', icon: Users, label: 'Kiracılar' },
-  { to: '/contracts', icon: FileText, label: 'Sözleşme' },
-  { to: '/payments', icon: Wallet, label: 'Ödemeler' },
-  { to: '/maintenance', icon: Wrench, label: 'Bakım' },
+  { to: '/',           icon: LayoutDashboard, label: 'Ana Sayfa' },
+  { to: '/properties', icon: Building2,       label: 'Mülkler' },
+  { to: '/tenants',    icon: Users,           label: 'Kiracılar' },
+  { to: '/contracts',  icon: FileText,        label: 'Sözleşme' },
+  { to: '/payments',   icon: Wallet,          label: 'Ödemeler' },
+  { to: '/more',       icon: Grid3X3,         label: 'Daha Fazla' },
 ];
 
 export default function BottomNav() {

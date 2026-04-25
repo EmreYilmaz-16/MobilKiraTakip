@@ -12,24 +12,43 @@ const paymentRoutes = require('./routes/payments.routes');
 const expenseRoutes = require('./routes/expenses.routes');
 const maintenanceRoutes = require('./routes/maintenance.routes');
 const reportRoutes = require('./routes/reports.routes');
+const lawyerRoutes = require('./routes/lawyers.routes');
+const marketPricesRoutes = require('./routes/market_prices.routes');
+const taxRoutes = require('./routes/taxes.routes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
 // Security
 app.use(helmet());
+
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : null; // null = tüm originlere izin ver
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+  origin: corsOrigins
+    ? (origin, cb) => {
+        // origin undefined = Postman/curl/mobil gibi non-browser istekler — izin ver
+        if (!origin || corsOrigins.includes('*') || corsOrigins.includes(origin)) {
+          cb(null, true);
+        } else {
+          cb(new Error('CORS policy: bu origin izin listesinde değil'));
+        }
+      }
+    : true, // CORS_ORIGIN tanımlı değilse herkese izin ver
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Rate limiting
-app.use('/api/v1/auth/login', rateLimit({
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { success: false, message: 'Çok fazla deneme, 15 dakika bekleyin' }
-}));
+});
+app.use('/api/v1/auth/login', authLimiter);
+app.use('/api/v1/auth/register', authLimiter);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false }));
@@ -46,6 +65,9 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/expenses', expenseRoutes);
 app.use('/api/v1/maintenance', maintenanceRoutes);
 app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/legal', lawyerRoutes);
+app.use('/api/v1/market-prices', marketPricesRoutes);
+app.use('/api/v1/taxes', taxRoutes);
 
 // 404
 app.use((_req, res) => res.status(404).json({ success: false, message: 'Endpoint bulunamadı' }));

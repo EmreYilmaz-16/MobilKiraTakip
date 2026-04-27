@@ -84,14 +84,14 @@ export default function Dashboard() {
           </div>
           <div className="text-2xl font-bold">{(Number(contracts?.active ?? 0) + Number(contracts?.expired ?? 0)) || 0}</div>
           <div className="grid grid-cols-1 gap-2 mt-2">
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ expiry_filter: 'expired' }); }} className={`${badgeClassName} justify-start bg-gray-100 text-gray-700`}>
-              {contracts?.expired ?? 0} sözleşmesi bitenler
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ expiry_filter: 'expired' }); }} className={`${badgeClassName} justify-start bg-red-100 text-red-700`}>
+              {contracts?.expired ?? 0} bitenler
             </button>
             <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ status: 'active' }); }} className={`${badgeClassName} justify-start bg-green-100 text-green-700`}>
-              {contracts?.active ?? 0} aktif sözleşmeler
+              {contracts?.active ?? 0} aktif
             </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ expiry_filter: 'expiring_3_months' }); }} className={`${badgeClassName} justify-start bg-amber-100 text-amber-700`}>
-              {contracts?.expiring_3_months ?? 0} bitmesine 3 ay veya daha az kalanlar
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ expiry_filter: 'expiring_3_months' }); }} className={`${badgeClassName} justify-start bg-yellow-100 text-yellow-700`}>
+              {contracts?.expiring_3_months ?? 0} yaklaşan
             </button>
           </div>
         </div>

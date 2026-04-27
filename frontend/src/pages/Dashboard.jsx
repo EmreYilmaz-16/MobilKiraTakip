@@ -19,6 +19,10 @@ export default function Dashboard() {
     const query = new URLSearchParams(params).toString();
     navigate(`/properties${query ? `?${query}` : ''}`);
   };
+  const goToContractFilter = (params) => {
+    const query = new URLSearchParams(params).toString();
+    navigate(`/contracts${query ? `?${query}` : ''}`);
+  };
   const badgeClassName = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-95';
 
   const { data, isLoading } = useQuery({
@@ -76,12 +80,20 @@ export default function Dashboard() {
         <div className="card cursor-pointer active:bg-gray-50" onClick={() => navigate('/contracts')}>
           <div className="flex items-center gap-2 mb-1">
             <FileText size={16} className="text-indigo-600" />
-            <span className="text-xs text-gray-500">Aktif Sözleşme</span>
+            <span className="text-xs text-gray-500">Sözleşmeler</span>
           </div>
-          <div className="text-2xl font-bold">{contracts?.active ?? 0}</div>
-          {contracts?.expiring_soon > 0 && (
-            <div className="text-xs text-amber-600 mt-1">{contracts.expiring_soon} bitiş yakın</div>
-          )}
+          <div className="text-2xl font-bold">{(Number(contracts?.active ?? 0) + Number(contracts?.expired ?? 0)) || 0}</div>
+          <div className="grid grid-cols-1 gap-2 mt-2">
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ expiry_filter: 'expired' }); }} className={`${badgeClassName} justify-start bg-gray-100 text-gray-700`}>
+              {contracts?.expired ?? 0} sözleşmesi bitenler
+            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ status: 'active' }); }} className={`${badgeClassName} justify-start bg-green-100 text-green-700`}>
+              {contracts?.active ?? 0} aktif sözleşmeler
+            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ expiry_filter: 'expiring_3_months' }); }} className={`${badgeClassName} justify-start bg-amber-100 text-amber-700`}>
+              {contracts?.expiring_3_months ?? 0} bitmesine 3 ay veya daha az kalanlar
+            </button>
+          </div>
         </div>
 
         <div className="card cursor-pointer active:bg-gray-50" onClick={() => navigate('/payments')}>

@@ -28,7 +28,10 @@ const dashboard = async (req, res, next) => {
                  AND date_trunc('month', due_date) = date_trunc('month', NOW())), 0) AS pending_this_month
              FROM payments`),
       query(`SELECT
-               COUNT(*) FILTER (WHERE status = 'active') AS active,
+               COUNT(*) FILTER (WHERE status = 'active' AND end_date >= CURRENT_DATE) AS active,
+               COUNT(*) FILTER (WHERE status = 'expired' OR (status = 'active' AND end_date < CURRENT_DATE)) AS expired,
+               COUNT(*) FILTER (WHERE status = 'active'
+                 AND end_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '3 months')) AS expiring_3_months,
                COUNT(*) FILTER (WHERE status = 'active'
                  AND end_date BETWEEN NOW()::date AND (NOW() + INTERVAL '30 days')::date) AS expiring_soon
              FROM contracts`),

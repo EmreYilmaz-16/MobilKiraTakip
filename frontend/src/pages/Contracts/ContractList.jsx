@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, AlertTriangle, XCircle, ChevronDown, ChevronUp, Phone, Mail, TrendingUp, FileText, CalendarClock, Banknote } from 'lucide-react';
 import api from '../../api/client';
 
@@ -43,14 +43,35 @@ function EndDateBadge({ endDateStr, status }) {
 export default function ContractList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const [expiryFilter, setExpiryFilter] = useState(searchParams.get('expiry_filter') || '');
   const [terminatingContract, setTerminatingContract] = useState(null); // { id, deposit_amount }
   const [showModal, setShowModal] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [form, setForm] = useState({ termination_type: 'terminated', deposit_return_amount: '', deposit_return_date: '', termination_notes: '' });
 
+  useEffect(() => {
+    setStatusFilter(searchParams.get('status') || '');
+    setExpiryFilter(searchParams.get('expiry_filter') || '');
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = {};
+    if (statusFilter) nextParams.status = statusFilter;
+    if (expiryFilter) nextParams.expiry_filter = expiryFilter;
+    setSearchParams(nextParams, { replace: true });
+  }, [statusFilter, expiryFilter, setSearchParams]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['contracts'],
-    queryFn: () => api.get('/contracts', { params: { limit: 50 } }).then((r) => r.data)
+    queryKey: ['contracts', statusFilter, expiryFilter],
+    queryFn: () => api.get('/contracts', {
+      params: {
+        status: statusFilter || undefined,
+        expiry_filter: expiryFilter || undefined,
+        limit: 50
+      }
+    }).then((r) => r.data)
   });
 
   // Seçili sözleşmenin detayını getir
@@ -94,6 +115,20 @@ export default function ContractList() {
         <button onClick={() => navigate('/contracts/new')} className="btn-primary py-2 px-3 text-sm">
           <Plus size={16} /> Ekle
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="">Tüm durumlar</option>
+          <option value="active">Aktif</option>
+          <option value="expired">Bitti</option>
+          <option value="terminated">Feshedildi</option>
+        </select>
+        <select className="input" value={expiryFilter} onChange={(e) => setExpiryFilter(e.target.value)}>
+          <option value="">Tüm bitişler</option>
+          <option value="expired">Sözleşmesi bitenler</option>
+          <option value="expiring_3_months">3 ay veya daha az kalanlar</option>
+        </select>
       </div>
 
       {isLoading ? (

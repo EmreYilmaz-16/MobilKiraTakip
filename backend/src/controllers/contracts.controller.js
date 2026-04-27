@@ -2,7 +2,7 @@ const { query, getClient } = require('../config/database');
 
 const list = async (req, res, next) => {
   try {
-    const { status, property_id, tenant_id, page = 1, limit = 20 } = req.query;
+    const { status, property_id, tenant_id, expiry_filter, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     const conditions = [];
     const params = [];
@@ -11,6 +11,12 @@ const list = async (req, res, next) => {
     if (status)      { conditions.push(`c.status = $${i++}`); params.push(status); }
     if (property_id) { conditions.push(`c.property_id = $${i++}`); params.push(property_id); }
     if (tenant_id)   { conditions.push(`c.tenant_id = $${i++}`); params.push(tenant_id); }
+    if (expiry_filter === 'expired') {
+      conditions.push(`((c.status = 'expired') OR (c.status = 'active' AND c.end_date < CURRENT_DATE))`);
+    }
+    if (expiry_filter === 'expiring_3_months') {
+      conditions.push(`c.status = 'active' AND c.end_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '3 months')`);
+    }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const countRes = await query(`SELECT COUNT(*) FROM contracts c ${where}`, params);

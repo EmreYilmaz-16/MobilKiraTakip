@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import api from '../../api/client';
 
-const statusLabel = { available: 'Boş', rented: 'Kiralık', maintenance: 'Bakımda', for_sale: 'Satılık' };
+const statusLabel = { available: 'Boş', rented: 'Kiralık', maintenance: 'Tadilatta', for_sale: 'Satılık' };
 const statusColor = {
   available: 'bg-green-100 text-green-700',
   rented: 'bg-blue-100 text-blue-700',
@@ -109,7 +109,7 @@ export default function PropertyList() {
             {summary?.for_sale ?? 0} satılık
           </button>
           <button type="button" onClick={() => toggleStatus('maintenance')} className={`${badgeClassName} justify-start ${status === 'maintenance' ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-300' : inactiveBadgeClassName}`}>
-            {summary?.maintenance ?? 0} bakımda
+            {summary?.maintenance ?? 0} tadilatta
           </button>
         </div>
 

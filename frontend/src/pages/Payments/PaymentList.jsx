@@ -83,7 +83,7 @@ export default function PaymentList() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Ödemeler</h1>
+        <h1 className="text-xl font-bold">Kiralar</h1>
       </div>
 
       {/* Tahakkuk paneli */}

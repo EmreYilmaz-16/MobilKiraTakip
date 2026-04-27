@@ -110,7 +110,7 @@ export default function PropertyForm() {
             <select className="input" {...register('status')}>
               <option value="available">Boş</option>
               <option value="rented">Kiralık</option>
-              <option value="maintenance">Bakımda</option>
+              <option value="maintenance">Tadilatta</option>
               <option value="for_sale">Satılık</option>
             </select>
           </div>

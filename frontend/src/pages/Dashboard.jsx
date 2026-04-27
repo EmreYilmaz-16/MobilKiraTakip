@@ -24,7 +24,7 @@ const propertyStatusConfig = [
   { key: 'rented', label: 'Kiralık', color: '#22c55e' },
   { key: 'available', label: 'Boş', color: '#38bdf8' },
   { key: 'for_sale', label: 'Satılık', color: '#f97316' },
-  { key: 'maintenance', label: 'Bakımda', color: '#f43f5e' }
+  { key: 'maintenance', label: 'Tadilatta', color: '#f43f5e' }
 ];
 
 const buildPieData = (data, config) => config
@@ -121,7 +121,7 @@ export default function Dashboard() {
               {properties?.for_sale ?? 0} Satılık
             </button>
             <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'maintenance' }); }} className={`${badgeClassName} justify-start bg-orange-100 text-orange-700`}>
-              {properties?.maintenance ?? 0} Bakımda
+              {properties?.maintenance ?? 0} Tadilatta
             </button>
           </div>
         </div>

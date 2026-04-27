@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-  { to: '/payments',       icon: Wallet,         label: 'Ödemeler',        bg: 'bg-blue-50',   text: 'text-blue-600' },
+  { to: '/payments',       icon: Wallet,         label: 'Kiralar',          bg: 'bg-blue-50',   text: 'text-blue-600' },
   { to: '/income',         icon: BadgeDollarSign, label: 'Gelirler',        bg: 'bg-emerald-50', text: 'text-emerald-600' },
   { to: '/maintenance',    icon: Wrench,       label: 'Bakım/Arıza',     bg: 'bg-orange-50', text: 'text-orange-600' },
   { to: '/expenses',       icon: ReceiptText,  label: 'Giderler',        bg: 'bg-red-50',    text: 'text-red-600' },

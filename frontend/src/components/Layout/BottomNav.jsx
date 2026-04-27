@@ -6,7 +6,7 @@ const items = [
   { to: '/properties', icon: Building2,       label: 'Mülkler' },
   { to: '/tenants',    icon: Users,           label: 'Kiracılar' },
   { to: '/contracts',  icon: FileText,        label: 'Sözleşme' },
-  { to: '/payments',   icon: Wallet,          label: 'Ödemeler' },
+  { to: '/payments',   icon: Wallet,          label: 'Kiralar' },
   { to: '/more',       icon: Grid3X3,         label: 'Daha Fazla' },
 ];
 

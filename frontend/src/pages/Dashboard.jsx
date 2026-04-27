@@ -232,22 +232,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {propertyStatusConfig.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => goToPropertyFilter({ status: item.key })}
-              className="flex items-center justify-between rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-left active:bg-white"
-            >
-              <span className="flex items-center gap-2 text-xs text-slate-600">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                {item.label}
-              </span>
-              <span className="text-sm font-semibold text-slate-900">{properties?.[item.key] ?? 0}</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {open_maintenance > 0 && (

@@ -37,24 +37,54 @@ const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) =>
   }, type, quality);
 });
 
+const isHeicLikeFile = (file) => {
+  const lowerName = file.name.toLowerCase();
+  return file.type === 'image/heic'
+    || file.type === 'image/heif'
+    || lowerName.endsWith('.heic')
+    || lowerName.endsWith('.heif');
+};
+
+const convertHeicToJpeg = async (file) => {
+  const heic2anyModule = await import('heic2any');
+  const heic2any = heic2anyModule.default;
+  const output = await heic2any({
+    blob: file,
+    toType: 'image/jpeg',
+    quality: 0.9
+  });
+
+  const convertedBlob = Array.isArray(output) ? output[0] : output;
+  const baseName = file.name.replace(/\.[^.]+$/, '');
+
+  return new File([convertedBlob], `${baseName}.jpg`, {
+    type: 'image/jpeg',
+    lastModified: Date.now()
+  });
+};
+
 const optimizeImageForUpload = async (file) => {
   if (!file.type.startsWith('image/')) {
     return file;
   }
 
+  const normalizedFile = isHeicLikeFile(file)
+    ? await convertHeicToJpeg(file)
+    : file;
+
   const maxDimension = 1920;
-  const preferredType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  const preferredType = normalizedFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
   const quality = preferredType === 'image/png' ? undefined : 0.82;
 
   try {
-    const { image, imageUrl, width, height } = await readImageDimensions(file);
+    const { image, imageUrl, width, height } = await readImageDimensions(normalizedFile);
     const scale = Math.min(1, maxDimension / Math.max(width, height));
     const targetWidth = Math.max(1, Math.round(width * scale));
     const targetHeight = Math.max(1, Math.round(height * scale));
 
-    if (scale === 1 && file.size <= 4 * 1024 * 1024) {
+    if (scale === 1 && normalizedFile.size <= 4 * 1024 * 1024) {
       URL.revokeObjectURL(imageUrl);
-      return file;
+      return normalizedFile;
     }
 
     const canvas = document.createElement('canvas');
@@ -64,18 +94,18 @@ const optimizeImageForUpload = async (file) => {
     const context = canvas.getContext('2d');
     if (!context) {
       URL.revokeObjectURL(imageUrl);
-      return file;
+      return normalizedFile;
     }
 
     context.drawImage(image, 0, 0, targetWidth, targetHeight);
     URL.revokeObjectURL(imageUrl);
 
     const blob = await canvasToBlob(canvas, preferredType, quality);
-    if (blob.size >= file.size) {
-      return file;
+    if (blob.size >= normalizedFile.size) {
+      return normalizedFile;
     }
 
-    const baseName = file.name.replace(/\.[^.]+$/, '');
+    const baseName = normalizedFile.name.replace(/\.[^.]+$/, '');
     const extension = preferredType === 'image/png' ? 'png' : 'jpg';
 
     return new File([blob], `${baseName}.${extension}`, {
@@ -83,7 +113,7 @@ const optimizeImageForUpload = async (file) => {
       lastModified: Date.now()
     });
   } catch {
-    return file;
+    return normalizedFile;
   }
 };
 
@@ -192,7 +222,7 @@ export default function DocumentPanel({ entityType, entityId, title }) {
       )}
 
       <div className="text-xs text-gray-500">
-        Telefon fotografi ve diger belgeler icin maksimum dosya boyutu 25 MB. Fotograf secildiginde yuklemeden once otomatik optimize edilir.
+        Telefon fotografi ve diger belgeler icin maksimum dosya boyutu 25 MB. Fotograf secildiginde yuklemeden once otomatik optimize edilir ve iPhone HEIC dosyalari desteklenir.
       </div>
 
       {isPreparingFile && <div className="text-xs text-gray-500">Fotograf yukleme icin hazirlaniyor...</div>}

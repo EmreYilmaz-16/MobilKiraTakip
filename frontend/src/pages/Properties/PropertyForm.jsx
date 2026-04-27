@@ -89,6 +89,11 @@ export default function PropertyForm() {
           {errors.name && <span className="text-red-500 text-xs">Zorunlu alan</span>}
         </div>
 
+        <div>
+          <label className="label">Site</label>
+          <input className="input" {...register('site_name')} placeholder="Örn: Gülpark Sitesi" />
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Tür *</label>

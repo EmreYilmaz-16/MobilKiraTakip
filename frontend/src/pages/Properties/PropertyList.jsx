@@ -16,10 +16,18 @@ export default function PropertyList() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [siteName, setSiteName] = useState('');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['properties', search, status],
-    queryFn: () => api.get('/properties', { params: { search: search || undefined, status: status || undefined, limit: 50 } }).then((r) => r.data)
+    queryKey: ['properties', search, status, siteName],
+    queryFn: () => api.get('/properties', {
+      params: {
+        search: search || undefined,
+        status: status || undefined,
+        site_name: siteName || undefined,
+        limit: 50
+      }
+    }).then((r) => r.data)
   });
 
   return (
@@ -31,7 +39,7 @@ export default function PropertyList() {
         </button>
       </div>
 
-      <div className="flex gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_160px_180px]">
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -41,6 +49,12 @@ export default function PropertyList() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <input
+          className="input"
+          placeholder="Site filtrele..."
+          value={siteName}
+          onChange={(e) => setSiteName(e.target.value)}
+        />
         <select className="input w-32" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Tümü</option>
           <option value="available">Boş</option>
@@ -62,9 +76,9 @@ export default function PropertyList() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm truncate">{p.name}</div>
-                  {(p.city_name || p.district_name || p.building_name) && (
+                  {(p.site_name || p.city_name || p.district_name || p.building_name) && (
                     <div className="text-xs text-gray-500">
-                      {[p.city_name, p.district_name, p.building_name].filter(Boolean).join(' / ')}
+                      {[p.site_name, p.city_name, p.district_name, p.building_name].filter(Boolean).join(' / ')}
                     </div>
                   )}
                   {p.tenant_name && (

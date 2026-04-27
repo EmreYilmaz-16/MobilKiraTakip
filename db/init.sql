@@ -45,6 +45,7 @@ CREATE TABLE properties (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     building_id     UUID REFERENCES buildings(id) ON DELETE SET NULL,
     name            VARCHAR(150) NOT NULL,
+  site_name       VARCHAR(150),
     type            VARCHAR(20) NOT NULL DEFAULT 'residential'
                       CHECK (type IN ('residential','commercial','parking','other')),
     floor           INT,

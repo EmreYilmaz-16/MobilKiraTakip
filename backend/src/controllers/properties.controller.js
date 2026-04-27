@@ -2,7 +2,7 @@ const { query } = require('../config/database');
 
 const list = async (req, res, next) => {
   try {
-    const { status, type, building_id, search, page = 1, limit = 20 } = req.query;
+    const { status, type, building_id, site_name, search, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     const conditions = [];
     const params = [];
@@ -11,7 +11,8 @@ const list = async (req, res, next) => {
     if (status)      { conditions.push(`p.status = $${i++}`); params.push(status); }
     if (type)        { conditions.push(`p.type = $${i++}`); params.push(type); }
     if (building_id) { conditions.push(`p.building_id = $${i++}`); params.push(building_id); }
-    if (search)      { conditions.push(`(p.name ILIKE $${i++} OR p.unit_number ILIKE $${i-1})`); params.push(`%${search}%`); }
+    if (site_name)   { conditions.push(`p.site_name ILIKE $${i++}`); params.push(`%${site_name}%`); }
+    if (search)      { conditions.push(`(p.name ILIKE $${i++} OR p.unit_number ILIKE $${i-1} OR p.site_name ILIKE $${i-1})`); params.push(`%${search}%`); }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -62,14 +63,14 @@ const get = async (req, res, next) => {
 
 const create = async (req, res, next) => {
   try {
-    const { building_id, name, type, floor, unit_number, area_sqm,
+    const { building_id, name, site_name, type, floor, unit_number, area_sqm,
             deed_info, description, purchase_price, market_value,
             city_id, district_id, neighborhood } = req.body;
     const { rows } = await query(
-      `INSERT INTO properties (building_id, name, type, floor, unit_number, area_sqm,
+      `INSERT INTO properties (building_id, name, site_name, type, floor, unit_number, area_sqm,
         deed_info, description, purchase_price, market_value, city_id, district_id, neighborhood)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [building_id || null, name, type || 'residential', floor || null,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [building_id || null, name, site_name || null, type || 'residential', floor || null,
        unit_number || null, area_sqm || null, deed_info || null,
        description || null, purchase_price || null, market_value || null,
        city_id || null, district_id || null, neighborhood || null]
@@ -80,27 +81,28 @@ const create = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   try {
-    const { building_id, name, type, floor, unit_number, area_sqm,
+    const { building_id, name, site_name, type, floor, unit_number, area_sqm,
             deed_info, description, status, purchase_price, market_value,
             city_id, district_id, neighborhood } = req.body;
     const { rows } = await query(
       `UPDATE properties SET
         building_id = COALESCE($1, building_id),
         name = COALESCE($2, name),
-        type = COALESCE($3, type),
-        floor = COALESCE($4, floor),
-        unit_number = COALESCE($5, unit_number),
-        area_sqm = COALESCE($6, area_sqm),
-        deed_info = COALESCE($7, deed_info),
-        description = COALESCE($8, description),
-        status = COALESCE($9, status),
-        purchase_price = COALESCE($10, purchase_price),
-        market_value = COALESCE($11, market_value),
-        city_id = $13,
-        district_id = $14,
-        neighborhood = $15
-       WHERE id = $12 RETURNING *`,
-      [building_id, name, type, floor, unit_number, area_sqm,
+        site_name = $3,
+        type = COALESCE($4, type),
+        floor = COALESCE($5, floor),
+        unit_number = COALESCE($6, unit_number),
+        area_sqm = COALESCE($7, area_sqm),
+        deed_info = COALESCE($8, deed_info),
+        description = COALESCE($9, description),
+        status = COALESCE($10, status),
+        purchase_price = COALESCE($11, purchase_price),
+        market_value = COALESCE($12, market_value),
+        city_id = $14,
+        district_id = $15,
+        neighborhood = $16
+       WHERE id = $13 RETURNING *`,
+      [building_id, name, site_name || null, type, floor, unit_number, area_sqm,
        deed_info, description, status, purchase_price, market_value, req.params.id,
        city_id || null, district_id || null, neighborhood || null]
     );

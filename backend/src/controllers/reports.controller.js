@@ -11,7 +11,12 @@ const dashboard = async (req, res, next) => {
       query(`SELECT
                COUNT(*) FILTER (WHERE status = 'available') AS available,
                COUNT(*) FILTER (WHERE status = 'rented') AS rented,
+               COUNT(*) FILTER (WHERE status = 'for_sale') AS for_sale,
                COUNT(*) FILTER (WHERE status = 'maintenance') AS maintenance,
+               COUNT(*) FILTER (WHERE type = 'residential') AS residential,
+               COUNT(*) FILTER (WHERE type = 'commercial') AS commercial,
+               COUNT(*) FILTER (WHERE type = 'parking') AS parking,
+               COUNT(*) FILTER (WHERE type = 'other') AS other,
                COUNT(*) AS total
              FROM properties`),
       query(`SELECT

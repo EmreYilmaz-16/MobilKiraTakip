@@ -37,10 +37,17 @@ export default function Dashboard() {
             <span className="text-xs text-gray-500">Mülkler</span>
           </div>
           <div className="text-2xl font-bold">{properties?.total ?? 0}</div>
-          <div className="flex gap-2 mt-1">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2">
             <span className="text-xs text-green-600">{properties?.rented ?? 0} kiralık</span>
-            <span className="text-xs text-gray-400">·</span>
             <span className="text-xs text-blue-600">{properties?.available ?? 0} boş</span>
+            <span className="text-xs text-purple-600">{properties?.for_sale ?? 0} satılık</span>
+            <span className="text-xs text-orange-600">{properties?.maintenance ?? 0} bakımda</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 pt-2 border-t border-gray-100">
+            <span className="text-xs text-slate-600">{properties?.residential ?? 0} konut</span>
+            <span className="text-xs text-slate-600">{properties?.commercial ?? 0} ticari</span>
+            <span className="text-xs text-slate-500">{properties?.parking ?? 0} otopark</span>
+            <span className="text-xs text-slate-500">{properties?.other ?? 0} diğer</span>
           </div>
         </div>
 

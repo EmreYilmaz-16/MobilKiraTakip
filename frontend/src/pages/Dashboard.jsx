@@ -109,33 +109,41 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="card cursor-pointer active:bg-gray-50" onClick={() => navigate('/payments')}>
-          <div className="flex items-center gap-2 mb-1">
+        <div className="card col-span-2 space-y-3">
+          <div className="flex items-center gap-2">
             <TrendingUp size={16} className="text-green-600" />
-            <span className="text-xs text-gray-500">{monthName.charAt(0).toUpperCase() + monthName.slice(1)} Tahsilat</span>
+            <span className="text-sm font-semibold text-gray-800">Güncel Ay Tahsilat Durumu</span>
           </div>
-          <div className="text-xl font-bold text-green-600">₺{fmt(payments?.collected_this_month)}</div>
-          {Number(payments?.pending_this_month) > 0 && (
-            <div className="text-xs text-yellow-600 mt-1">₺{fmt(payments?.pending_this_month)} bekliyor</div>
-          )}
-        </div>
 
-        <div className="card cursor-pointer active:bg-gray-50" onClick={() => navigate('/payments')}>
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp size={16} className="text-blue-600" />
-            <span className="text-xs text-gray-500">Bu Ay Tahakkuk</span>
-          </div>
-          <div className="text-xl font-bold text-blue-600">₺{fmt(payments?.due_this_month)}</div>
-          <div className="text-xs text-gray-500 mt-1">Toplam yapılması gereken</div>
-        </div>
+          <button
+            type="button"
+            onClick={() => navigate('/payments')}
+            className="w-full flex items-center justify-between rounded-xl bg-blue-50 px-3 py-2 text-left active:brightness-95"
+          >
+            <span className="text-sm text-blue-700">Bu Ay Tahakkuk</span>
+            <span className="text-base font-semibold text-blue-700">₺{fmt(payments?.due_this_month)}</span>
+          </button>
 
-        <div className="card cursor-pointer active:bg-gray-50" onClick={() => goToPaymentFilter({ overdue: 'true' })}>
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle size={16} className="text-red-500" />
-            <span className="text-xs text-gray-500">Gecikmiş</span>
-          </div>
-          <div className="text-2xl font-bold text-red-500">{payments?.overdue_count ?? 0}</div>
-          <div className="text-xs text-gray-500 mt-1">₺{fmt(payments?.overdue_total)}</div>
+          <button
+            type="button"
+            onClick={() => goToPaymentFilter({ status: 'paid' })}
+            className="w-full flex items-center justify-between rounded-xl bg-green-50 px-3 py-2 text-left active:brightness-95"
+          >
+            <span className="text-sm text-green-700">Tahsil Edilen</span>
+            <span className="text-base font-semibold text-green-700">₺{fmt(payments?.collected_this_month)}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => goToPaymentFilter({ overdue: 'true' })}
+            className="w-full flex items-center justify-between rounded-xl bg-red-50 px-3 py-2 text-left active:brightness-95"
+          >
+            <span className="flex items-center gap-2 text-sm text-red-700">
+              <AlertTriangle size={15} className="text-red-500" />
+              Gecikmiş
+            </span>
+            <span className="text-base font-semibold text-red-700">₺{fmt(payments?.overdue_total)}</span>
+          </button>
         </div>
       </div>
 

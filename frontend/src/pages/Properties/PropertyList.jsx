@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import api from '../../api/client';
 
 const statusLabel = { available: 'Boş', rented: 'Kiralık', maintenance: 'Bakımda', for_sale: 'Satılık' };
@@ -11,31 +10,17 @@ const statusColor = {
   maintenance: 'bg-orange-100 text-orange-700',
   for_sale: 'bg-purple-100 text-purple-700'
 };
+const typeLabel = { residential: 'Konut', commercial: 'Ticari', parking: 'Otopark', other: 'Diğer' };
 const badgeClassName = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-95';
+const inactiveBadgeClassName = 'bg-slate-100 text-slate-700';
 
 export default function PropertyList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get('search') || '');
-  const [status, setStatus] = useState(searchParams.get('status') || '');
-  const [siteName, setSiteName] = useState(searchParams.get('site_name') || '');
-  const [type, setType] = useState(searchParams.get('type') || '');
-
-  useEffect(() => {
-    setSearch(searchParams.get('search') || '');
-    setStatus(searchParams.get('status') || '');
-    setSiteName(searchParams.get('site_name') || '');
-    setType(searchParams.get('type') || '');
-  }, [searchParams]);
-
-  useEffect(() => {
-    const nextParams = {};
-    if (search) nextParams.search = search;
-    if (status) nextParams.status = status;
-    if (siteName) nextParams.site_name = siteName;
-    if (type) nextParams.type = type;
-    setSearchParams(nextParams, { replace: true });
-  }, [search, status, siteName, type, setSearchParams]);
+  const status = searchParams.get('status') || '';
+  const type = searchParams.get('type') || '';
+  const search = searchParams.get('search') || '';
+  const siteName = searchParams.get('site_name') || '';
 
   const { data, isLoading } = useQuery({
     queryKey: ['properties', search, status, siteName, type],
@@ -55,10 +40,31 @@ export default function PropertyList() {
     queryFn: () => api.get('/reports/dashboard').then((r) => r.data.properties)
   });
 
-  const goToPropertyFilter = (params) => {
-    const query = new URLSearchParams(params).toString();
-    navigate(`/properties${query ? `?${query}` : ''}`);
+  const setPropertyFilters = (nextValues) => {
+    const nextParams = new URLSearchParams(searchParams);
+
+    Object.entries(nextValues).forEach(([key, value]) => {
+      if (value) {
+        nextParams.set(key, value);
+      } else {
+        nextParams.delete(key);
+      }
+    });
+
+    setSearchParams(nextParams, { replace: true });
   };
+
+  const toggleStatus = (nextStatus) => {
+    setPropertyFilters({ status: status === nextStatus ? '' : nextStatus });
+  };
+
+  const toggleType = (nextType) => {
+    setPropertyFilters({ type: type === nextType ? '' : nextType });
+  };
+
+  const clearSummaryFilters = () => setPropertyFilters({ status: '', type: '', search: '', site_name: '' });
+
+  const activeFilterLabel = statusLabel[status] || typeLabel[type] || '';
 
   return (
     <div className="space-y-3">
@@ -75,69 +81,52 @@ export default function PropertyList() {
             <div className="text-xs text-gray-500">Mülk Özeti</div>
             <div className="text-2xl font-bold text-gray-900">{summary?.total ?? 0}</div>
           </div>
+          {(status || type || search || siteName) && (
+            <button
+              type="button"
+              onClick={clearSummaryFilters}
+              className="text-xs font-medium text-primary-600"
+            >
+              Temizle
+            </button>
+          )}
         </div>
 
+        {activeFilterLabel && (
+          <div className="text-xs text-gray-500">
+            Aktif filtre: <span className="font-medium text-gray-800">{activeFilterLabel}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => goToPropertyFilter({ status: 'rented' })} className={`${badgeClassName} justify-start bg-green-100 text-green-700`}>
+          <button type="button" onClick={() => toggleStatus('rented')} className={`${badgeClassName} justify-start ${status === 'rented' ? 'bg-green-100 text-green-700 ring-1 ring-green-300' : inactiveBadgeClassName}`}>
             {summary?.rented ?? 0} kiralık
           </button>
-          <button type="button" onClick={() => goToPropertyFilter({ status: 'available' })} className={`${badgeClassName} justify-start bg-blue-100 text-blue-700`}>
+          <button type="button" onClick={() => toggleStatus('available')} className={`${badgeClassName} justify-start ${status === 'available' ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : inactiveBadgeClassName}`}>
             {summary?.available ?? 0} boş
           </button>
-          <button type="button" onClick={() => goToPropertyFilter({ status: 'for_sale' })} className={`${badgeClassName} justify-start bg-purple-100 text-purple-700`}>
+          <button type="button" onClick={() => toggleStatus('for_sale')} className={`${badgeClassName} justify-start ${status === 'for_sale' ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300' : inactiveBadgeClassName}`}>
             {summary?.for_sale ?? 0} satılık
           </button>
-          <button type="button" onClick={() => goToPropertyFilter({ status: 'maintenance' })} className={`${badgeClassName} justify-start bg-orange-100 text-orange-700`}>
+          <button type="button" onClick={() => toggleStatus('maintenance')} className={`${badgeClassName} justify-start ${status === 'maintenance' ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-300' : inactiveBadgeClassName}`}>
             {summary?.maintenance ?? 0} bakımda
           </button>
         </div>
 
         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
-          <button type="button" onClick={() => goToPropertyFilter({ type: 'residential' })} className={`${badgeClassName} justify-start bg-slate-100 text-slate-700`}>
+          <button type="button" onClick={() => toggleType('residential')} className={`${badgeClassName} justify-start ${type === 'residential' ? 'bg-slate-800 text-white ring-1 ring-slate-500' : inactiveBadgeClassName}`}>
             {summary?.residential ?? 0} konut
           </button>
-          <button type="button" onClick={() => goToPropertyFilter({ type: 'commercial' })} className={`${badgeClassName} justify-start bg-slate-100 text-slate-700`}>
+          <button type="button" onClick={() => toggleType('commercial')} className={`${badgeClassName} justify-start ${type === 'commercial' ? 'bg-slate-800 text-white ring-1 ring-slate-500' : inactiveBadgeClassName}`}>
             {summary?.commercial ?? 0} ticari
           </button>
-          <button type="button" onClick={() => goToPropertyFilter({ type: 'parking' })} className={`${badgeClassName} justify-start bg-slate-50 text-slate-600`}>
+          <button type="button" onClick={() => toggleType('parking')} className={`${badgeClassName} justify-start ${type === 'parking' ? 'bg-slate-800 text-white ring-1 ring-slate-500' : inactiveBadgeClassName}`}>
             {summary?.parking ?? 0} otopark
           </button>
-          <button type="button" onClick={() => goToPropertyFilter({ type: 'other' })} className={`${badgeClassName} justify-start bg-slate-50 text-slate-600`}>
+          <button type="button" onClick={() => toggleType('other')} className={`${badgeClassName} justify-start ${type === 'other' ? 'bg-slate-800 text-white ring-1 ring-slate-500' : inactiveBadgeClassName}`}>
             {summary?.other ?? 0} diğer
           </button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_160px_160px_180px]">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            className="input pl-9"
-            placeholder="Mülk ara..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <input
-          className="input"
-          placeholder="Site filtrele..."
-          value={siteName}
-          onChange={(e) => setSiteName(e.target.value)}
-        />
-        <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">Tüm türler</option>
-          <option value="residential">Konut</option>
-          <option value="commercial">Ticari</option>
-          <option value="parking">Otopark</option>
-          <option value="other">Diğer</option>
-        </select>
-        <select className="input w-32" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">Tümü</option>
-          <option value="available">Boş</option>
-          <option value="rented">Kiralık</option>
-          <option value="maintenance">Bakımda</option>
-          <option value="for_sale">Satılık</option>
-        </select>
       </div>
 
       {isLoading ? (

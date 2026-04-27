@@ -10,9 +10,87 @@ const formatFileSize = (size) => {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const readImageDimensions = (file) => new Promise((resolve, reject) => {
+  const imageUrl = URL.createObjectURL(file);
+  const image = new Image();
+
+  image.onload = () => {
+    resolve({ image, imageUrl, width: image.naturalWidth, height: image.naturalHeight });
+  };
+
+  image.onerror = () => {
+    URL.revokeObjectURL(imageUrl);
+    reject(new Error('Gorsel okunamadi'));
+  };
+
+  image.src = imageUrl;
+});
+
+const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) => {
+  canvas.toBlob((blob) => {
+    if (!blob) {
+      reject(new Error('Gorsel sikistirilamadi'));
+      return;
+    }
+
+    resolve(blob);
+  }, type, quality);
+});
+
+const optimizeImageForUpload = async (file) => {
+  if (!file.type.startsWith('image/')) {
+    return file;
+  }
+
+  const maxDimension = 1920;
+  const preferredType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  const quality = preferredType === 'image/png' ? undefined : 0.82;
+
+  try {
+    const { image, imageUrl, width, height } = await readImageDimensions(file);
+    const scale = Math.min(1, maxDimension / Math.max(width, height));
+    const targetWidth = Math.max(1, Math.round(width * scale));
+    const targetHeight = Math.max(1, Math.round(height * scale));
+
+    if (scale === 1 && file.size <= 4 * 1024 * 1024) {
+      URL.revokeObjectURL(imageUrl);
+      return file;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      URL.revokeObjectURL(imageUrl);
+      return file;
+    }
+
+    context.drawImage(image, 0, 0, targetWidth, targetHeight);
+    URL.revokeObjectURL(imageUrl);
+
+    const blob = await canvasToBlob(canvas, preferredType, quality);
+    if (blob.size >= file.size) {
+      return file;
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, '');
+    const extension = preferredType === 'image/png' ? 'png' : 'jpg';
+
+    return new File([blob], `${baseName}.${extension}`, {
+      type: preferredType,
+      lastModified: Date.now()
+    });
+  } catch {
+    return file;
+  }
+};
+
 export default function DocumentPanel({ entityType, entityId, title }) {
   const fileInputRef = useRef(null);
   const [localError, setLocalError] = useState('');
+  const [isPreparingFile, setIsPreparingFile] = useState(false);
   const qc = useQueryClient();
   const maxUploadBytes = 25 * 1024 * 1024;
 
@@ -86,18 +164,24 @@ export default function DocumentPanel({ entityType, entityId, title }) {
             type="file"
             className="hidden"
             accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-            onChange={(e) => {
+            onChange={async (e) => {
               const file = e.target.files?.[0];
 
               if (!file) return;
 
-              if (file.size > maxUploadBytes) {
+              setLocalError('');
+              setIsPreparingFile(true);
+
+              const preparedFile = await optimizeImageForUpload(file);
+              setIsPreparingFile(false);
+
+              if (preparedFile.size > maxUploadBytes) {
                 setLocalError('Secilen dosya 25 MB sinirini asiyor. Telefonda daha dusuk boyutlu fotograf secin veya sikistirin.');
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
               }
 
-              uploadMutation.mutate(file);
+              uploadMutation.mutate(preparedFile);
             }}
           />
         </label>
@@ -107,7 +191,11 @@ export default function DocumentPanel({ entityType, entityId, title }) {
         <div className="text-sm text-red-600">{localError || uploadMutation.error.message}</div>
       )}
 
-      <div className="text-xs text-gray-500">Telefon fotografi ve diger belgeler icin maksimum dosya boyutu 25 MB.</div>
+      <div className="text-xs text-gray-500">
+        Telefon fotografi ve diger belgeler icin maksimum dosya boyutu 25 MB. Fotograf secildiginde yuklemeden once otomatik optimize edilir.
+      </div>
+
+      {isPreparingFile && <div className="text-xs text-gray-500">Fotograf yukleme icin hazirlaniyor...</div>}
 
       {isLoading ? (
         <div className="text-sm text-gray-400">Belgeler yükleniyor...</div>

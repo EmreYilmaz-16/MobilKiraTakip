@@ -80,20 +80,20 @@ export default function Dashboard() {
         <div className="card cursor-pointer active:bg-gray-50 space-y-2" onClick={() => navigate('/properties')}>
           <div className="flex items-center gap-2 mb-1">
             <Building2 size={16} className="text-primary-600" />
-            <span className="text-xs text-gray-500">Mülkler</span>
+            <span className="text-sm font-semibold text-gray-800">Mülkler</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'rented' }); }} className={`${badgeClassName} justify-start bg-green-100 text-green-700`}>
-              {properties?.rented ?? 0} kiralık
+              {properties?.rented ?? 0} Kiralık
             </button>
             <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'available' }); }} className={`${badgeClassName} justify-start bg-blue-100 text-blue-700`}>
-              {properties?.available ?? 0} boş
+              {properties?.available ?? 0} Boş
             </button>
             <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'for_sale' }); }} className={`${badgeClassName} justify-start bg-purple-100 text-purple-700`}>
-              {properties?.for_sale ?? 0} satılık
+              {properties?.for_sale ?? 0} Satılık
             </button>
             <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'maintenance' }); }} className={`${badgeClassName} justify-start bg-orange-100 text-orange-700`}>
-              {properties?.maintenance ?? 0} bakımda
+              {properties?.maintenance ?? 0} Bakımda
             </button>
           </div>
         </div>
@@ -101,17 +101,17 @@ export default function Dashboard() {
         <div className="card cursor-pointer active:bg-gray-50 space-y-2" onClick={() => navigate('/contracts')}>
           <div className="flex items-center gap-2 mb-1">
             <FileText size={16} className="text-indigo-600" />
-            <span className="text-xs text-gray-500">Sözleşmeler</span>
+            <span className="text-sm font-semibold text-gray-800">Sözleşmeler</span>
           </div>
           <div className="grid grid-cols-1 gap-2 mt-2">
             <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ expiry_filter: 'expired' }); }} className={`${badgeClassName} justify-start bg-red-100 text-red-700`}>
-              {contracts?.expired ?? 0} bitenler
+              {contracts?.expired ?? 0} Bitenler
             </button>
             <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ status: 'active' }); }} className={`${badgeClassName} justify-start bg-green-100 text-green-700`}>
-              {contracts?.active ?? 0} aktif
+              {contracts?.active ?? 0} Aktif
             </button>
             <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ expiry_filter: 'expiring_3_months' }); }} className={`${badgeClassName} justify-start bg-yellow-100 text-yellow-700`}>
-              {contracts?.expiring_3_months ?? 0} yaklaşan
+              {contracts?.expiring_3_months ?? 0} Yaklaşan
             </button>
           </div>
         </div>

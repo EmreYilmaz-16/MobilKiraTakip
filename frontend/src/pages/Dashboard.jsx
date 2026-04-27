@@ -31,6 +31,24 @@ const buildPieData = (data, config) => config
   }))
   .filter((item) => item.value > 0);
 
+function PropertyStatusTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null;
+
+  const item = payload[0]?.payload;
+  if (!item) return null;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
+      <div className="text-xs font-medium text-slate-500">Mülk Durumu</div>
+      <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-800">
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+        {item.label}
+      </div>
+      <div className="mt-1 text-xs text-slate-600">{fmt(item.value)} adet</div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const goToPaymentFilter = (params) => {
@@ -57,6 +75,7 @@ export default function Dashboard() {
 
   const { properties, payments, contracts, open_maintenance } = data || {};
   const pieData = buildPieData(properties, propertyStatusConfig);
+  const totalProperties = propertyStatusConfig.reduce((sum, item) => sum + Number(properties?.[item.key] ?? 0), 0);
 
   return (
     <div className="space-y-3">
@@ -139,54 +158,101 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/70">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-sm font-semibold text-gray-800">Mülk Durumları</div>
-            <div className="text-xs text-gray-500 mt-1">Durum dağılımı</div>
+            <div className="text-sm font-semibold text-slate-800">Mülk Durumları</div>
+            <div className="text-xs text-slate-500 mt-1">Portföy dağılımı</div>
           </div>
-          <div className="relative h-28 w-28 shrink-0">
+          <div className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200">
+            Toplam {fmt(totalProperties)}
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center">
+          <div className="grid grid-cols-2 gap-2">
+            {propertyStatusConfig.map((item) => {
+              const value = Number(properties?.[item.key] ?? 0);
+              const share = totalProperties > 0 ? Math.round((value / totalProperties) * 100) : 0;
+
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => goToPropertyFilter({ status: item.key })}
+                  className="rounded-2xl border border-white/70 bg-white/80 px-3 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                      {item.label}
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-400">%{share}</span>
+                  </div>
+                  <div className="mt-2 text-lg font-semibold text-slate-900">{fmt(value)}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="relative mx-auto h-52 w-52 sm:h-56 sm:w-56">
             {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="label"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={52}
-                    innerRadius={0}
-                    stroke="none"
-                  >
-                    {pieData.map((segment) => (
-                      <Cell key={segment.key} fill={segment.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => fmt(value)} />
-                </PieChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <defs>
+                      <filter id="pieShadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="8" stdDeviation="10" floodOpacity="0.14" />
+                      </filter>
+                    </defs>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="label"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      innerRadius={42}
+                      paddingAngle={3}
+                      cornerRadius={6}
+                      stroke="none"
+                      filter="url(#pieShadow)"
+                    >
+                      {pieData.map((segment) => (
+                        <Cell key={segment.key} fill={segment.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<PropertyStatusTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="rounded-full bg-white/90 px-5 py-4 text-center shadow-sm ring-1 ring-slate-200 backdrop-blur-sm">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Toplam</div>
+                    <div className="mt-1 text-2xl font-bold text-slate-900">{fmt(totalProperties)}</div>
+                  </div>
+                </div>
+              </>
             ) : (
-              <div className="h-28 w-28 rounded-full border-8 border-gray-200 flex items-center justify-center text-xs text-gray-400">
+              <div className="flex h-full w-full items-center justify-center rounded-full border border-dashed border-slate-300 bg-white/70 text-xs text-slate-400">
                 Veri yok
               </div>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mt-3">
+        <div className="mt-4 grid grid-cols-2 gap-2">
           {propertyStatusConfig.map((item) => (
             <button
               key={item.key}
               type="button"
               onClick={() => goToPropertyFilter({ status: item.key })}
-              className="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 text-left active:bg-gray-50"
+              className="flex items-center justify-between rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-left active:bg-white"
             >
-              <span className="flex items-center gap-2 text-xs text-gray-600">
+              <span className="flex items-center gap-2 text-xs text-slate-600">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                 {item.label}
               </span>
-              <span className="text-sm font-semibold text-gray-900">{properties?.[item.key] ?? 0}</span>
+              <span className="text-sm font-semibold text-slate-900">{properties?.[item.key] ?? 0}</span>
             </button>
           ))}
         </div>

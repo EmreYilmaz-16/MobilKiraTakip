@@ -45,9 +45,14 @@ export default function TenantList() {
                   <Phone size={11} /> {t.phone}
                 </div>
               </div>
-              <span className={`badge ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                {t.is_active ? 'Aktif' : 'Pasif'}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className={`badge ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {t.is_active ? 'Aktif' : 'Pasif'}
+                </span>
+                <span className={`badge ${Number(t.active_contract_count) > 0 ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                  {Number(t.active_contract_count) || 0} Sözleşme
+                </span>
+              </div>
             </div>
           ))}
           {!data?.length && <div className="text-center py-8 text-gray-400">Kiracı bulunamadı</div>}

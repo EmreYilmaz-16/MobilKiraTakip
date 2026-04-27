@@ -17,7 +17,14 @@ const list = async (req, res, next) => {
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const countRes = await query(`SELECT COUNT(*) FROM tenants ${where}`, params);
     const { rows } = await query(
-      `SELECT * FROM tenants ${where} ORDER BY last_name, first_name LIMIT $${i++} OFFSET $${i++}`,
+      `SELECT tenants.*,
+              (
+                SELECT COUNT(*)
+                FROM contracts c
+                WHERE c.tenant_id = tenants.id AND c.status = 'active'
+              )::int AS active_contract_count
+       FROM tenants ${where}
+       ORDER BY last_name, first_name LIMIT $${i++} OFFSET $${i++}`,
       [...params, Number(limit), Number(offset)]
     );
 

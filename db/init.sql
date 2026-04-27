@@ -175,6 +175,39 @@ CREATE TABLE insurance_policies (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+  -- ============================================================
+  -- DOCUMENTS (Mülk / Kiracı / Sözleşme Belgeleri)
+  -- ============================================================
+  CREATE TABLE IF NOT EXISTS documents (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    entity_type     VARCHAR(20) NOT NULL CHECK (entity_type IN ('property','tenant','contract')),
+    entity_id       UUID NOT NULL,
+    file_name       VARCHAR(255) NOT NULL,
+    original_name   VARCHAR(255) NOT NULL,
+    mime_type       VARCHAR(120),
+    file_size       BIGINT NOT NULL DEFAULT 0,
+    uploaded_by     UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- ============================================================
+  -- DOCUMENTS (Belge Yönetimi)
+  -- ============================================================
+  CREATE TABLE documents (
+    id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    entity_type    VARCHAR(20) NOT NULL
+             CHECK (entity_type IN ('property','tenant','contract')),
+    entity_id      UUID NOT NULL,
+    original_name  VARCHAR(255) NOT NULL,
+    stored_name    VARCHAR(255) NOT NULL,
+    mime_type      VARCHAR(150),
+    file_size      BIGINT,
+    storage_path   VARCHAR(500) NOT NULL,
+    uploaded_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
 -- ============================================================
 -- INDEXES
 -- ============================================================
@@ -189,6 +222,9 @@ CREATE INDEX idx_payments_due_date ON payments(due_date);
 CREATE INDEX idx_expenses_property ON expenses(property_id);
 CREATE INDEX idx_maintenance_property ON maintenance_requests(property_id);
 CREATE INDEX idx_maintenance_status ON maintenance_requests(status);
+CREATE INDEX idx_documents_entity ON documents(entity_type, entity_id, created_at DESC);
+CREATE INDEX idx_documents_uploaded_by ON documents(uploaded_by);
+CREATE INDEX idx_documents_entity ON documents(entity_type, entity_id);
 
 -- ============================================================
 -- UPDATED_AT auto-update trigger
@@ -207,7 +243,7 @@ DECLARE
 BEGIN
   FOREACH t IN ARRAY ARRAY[
     'users','buildings','properties','tenants','contracts',
-    'payments','expenses','maintenance_requests','insurance_policies'
+    'payments','expenses','maintenance_requests','insurance_policies','documents'
   ] LOOP
     EXECUTE format(
       'CREATE TRIGGER trg_%s_updated_at

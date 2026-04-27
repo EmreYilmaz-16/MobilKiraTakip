@@ -16,6 +16,7 @@ const lawyerRoutes = require('./routes/lawyers.routes');
 const marketPricesRoutes = require('./routes/market_prices.routes');
 const taxRoutes = require('./routes/taxes.routes');
 const locationRoutes = require('./routes/locations.routes');
+const documentRoutes = require('./routes/documents.routes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -70,6 +71,7 @@ app.use('/api/v1/legal', lawyerRoutes);
 app.use('/api/v1/market-prices', marketPricesRoutes);
 app.use('/api/v1/taxes', taxRoutes);
 app.use('/api/v1/locations', locationRoutes);
+app.use('/api/v1/documents', documentRoutes);
 
 // 404
 app.use((_req, res) => res.status(404).json({ success: false, message: 'Endpoint bulunamadı' }));

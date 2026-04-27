@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/client';
 import { ArrowLeft } from 'lucide-react';
+import DocumentPanel from '../../components/DocumentPanel';
 
 export default function PropertyForm() {
   const navigate = useNavigate();
@@ -175,6 +176,12 @@ export default function PropertyForm() {
           <label className="label">Açıklama</label>
           <textarea className="input" rows={2} {...register('description')} />
         </div>
+
+        <DocumentPanel
+          entityType="property"
+          entityId={id}
+          title="Mülk Belgeleri"
+        />
 
         {mutation.error && (
           <div className="text-red-600 text-sm">{mutation.error.message}</div>

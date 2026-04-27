@@ -21,10 +21,10 @@ const propertyTypeConfig = [
 ];
 
 const propertyStatusConfig = [
-  { key: 'rented', label: 'Kiralık', color: '#16a34a' },
-  { key: 'available', label: 'Boş', color: '#2563eb' },
-  { key: 'for_sale', label: 'Satılık', color: '#9333ea' },
-  { key: 'maintenance', label: 'Bakımda', color: '#ea580c' }
+  { key: 'rented', label: 'Kiralık', color: '#22c55e' },
+  { key: 'available', label: 'Boş', color: '#38bdf8' },
+  { key: 'for_sale', label: 'Satılık', color: '#f97316' },
+  { key: 'maintenance', label: 'Bakımda', color: '#f43f5e' }
 ];
 
 const buildPieData = (data, config) => config
@@ -60,7 +60,6 @@ export default function Dashboard() {
 
   const { properties, payments, contracts, open_maintenance } = data || {};
   const pieData = buildPieData(properties, propertyStatusConfig);
-  const totalProperties = propertyStatusConfig.reduce((sum, item) => sum + Number(properties?.[item.key] ?? 0), 0);
   const chartData = {
     labels: pieData.map((item) => item.label),
     datasets: [
@@ -93,7 +92,8 @@ export default function Dashboard() {
         callbacks: {
           label(context) {
             const value = Number(context.raw || 0);
-            const percent = totalProperties > 0 ? Math.round((value / totalProperties) * 100) : 0;
+            const total = pieData.reduce((sum, item) => sum + Number(item.value || 0), 0);
+            const percent = total > 0 ? Math.round((value / total) * 100) : 0;
             return `${context.label}: ${fmt(value)} adet (%${percent})`;
           }
         }
@@ -188,16 +188,14 @@ export default function Dashboard() {
             <div className="text-sm font-semibold text-slate-800">Mülk Durumları</div>
             <div className="text-xs text-slate-500 mt-1">Portföy dağılımı</div>
           </div>
-          <div className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200">
-            Toplam {fmt(totalProperties)}
-          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center">
           <div className="grid grid-cols-2 gap-2">
             {propertyStatusConfig.map((item) => {
               const value = Number(properties?.[item.key] ?? 0);
-              const share = totalProperties > 0 ? Math.round((value / totalProperties) * 100) : 0;
+              const total = pieData.reduce((sum, segment) => sum + Number(segment.value || 0), 0);
+              const share = total > 0 ? Math.round((value / total) * 100) : 0;
 
               return (
                 <button
@@ -224,12 +222,6 @@ export default function Dashboard() {
               <>
                 <div className="h-full w-full rounded-full bg-white/60 p-3 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.45)] ring-1 ring-white/80">
                   <Pie data={chartData} options={chartOptions} />
-                </div>
-                <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
-                  <div className="rounded-full bg-white/90 px-4 py-2 text-center shadow-sm ring-1 ring-slate-200 backdrop-blur-sm">
-                    <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Toplam</div>
-                    <div className="mt-0.5 text-lg font-bold text-slate-900">{fmt(totalProperties)}</div>
-                  </div>
                 </div>
               </>
             ) : (

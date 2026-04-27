@@ -4,6 +4,7 @@ import api from '../api/client';
 import {
   Building2, AlertTriangle, TrendingUp, Wrench, FileText
 } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR');
 
@@ -23,28 +24,12 @@ const propertyStatusConfig = [
   { key: 'maintenance', label: 'Bakımda', color: '#ea580c' }
 ];
 
-const buildPieSegments = (data, config) => {
-  const total = config.reduce((sum, item) => sum + Number(data?.[item.key] ?? 0), 0);
-
-  if (!total) {
-    return [];
-  }
-
-  let cumulative = 0;
-  return config.map((item) => {
-    const value = Number(data?.[item.key] ?? 0);
-    const fraction = value / total;
-    const start = cumulative;
-    cumulative += fraction;
-
-    return {
-      ...item,
-      value,
-      dashArray: `${fraction * 100} ${100 - fraction * 100}`,
-      dashOffset: -start * 100
-    };
-  }).filter((item) => item.value > 0);
-};
+const buildPieData = (data, config) => config
+  .map((item) => ({
+    ...item,
+    value: Number(data?.[item.key] ?? 0)
+  }))
+  .filter((item) => item.value > 0);
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -71,7 +56,7 @@ export default function Dashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-48 text-gray-400">Yükleniyor...</div>;
 
   const { properties, payments, contracts, open_maintenance } = data || {};
-  const pieSegments = buildPieSegments(properties, propertyStatusConfig);
+  const pieData = buildPieData(properties, propertyStatusConfig);
 
   return (
     <div className="space-y-3">
@@ -161,23 +146,26 @@ export default function Dashboard() {
             <div className="text-xs text-gray-500 mt-1">Durum dağılımı</div>
           </div>
           <div className="relative h-28 w-28 shrink-0">
-            {pieSegments.length > 0 ? (
-              <svg viewBox="0 0 42 42" className="h-28 w-28 -rotate-90">
-                <circle cx="21" cy="21" r="15.915" fill="none" stroke="#e5e7eb" strokeWidth="6" />
-                {pieSegments.map((segment) => (
-                  <circle
-                    key={segment.key}
-                    cx="21"
-                    cy="21"
-                    r="15.915"
-                    fill="none"
-                    stroke={segment.color}
-                    strokeWidth="6"
-                    strokeDasharray={segment.dashArray}
-                    strokeDashoffset={segment.dashOffset}
-                  />
-                ))}
-              </svg>
+            {pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="label"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={52}
+                    innerRadius={0}
+                    stroke="none"
+                  >
+                    {pieData.map((segment) => (
+                      <Cell key={segment.key} fill={segment.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => fmt(value)} />
+                </PieChart>
+              </ResponsiveContainer>
             ) : (
               <div className="h-28 w-28 rounded-full border-8 border-gray-200 flex items-center justify-center text-xs text-gray-400">
                 Veri yok

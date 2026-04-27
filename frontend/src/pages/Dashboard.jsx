@@ -66,11 +66,11 @@ export default function Dashboard() {
       {
         data: pieData.map((item) => item.value),
         backgroundColor: pieData.map((item) => item.color),
-        borderColor: '#ffffff',
-        borderWidth: 4,
-        hoverBorderWidth: 4,
+        borderColor: 'transparent',
+        borderWidth: 0,
+        hoverBorderWidth: 0,
         hoverOffset: 10,
-        spacing: 2
+        spacing: 0
       }
     ]
   };
@@ -220,7 +220,7 @@ export default function Dashboard() {
           <div className="relative mx-auto h-52 w-52 sm:h-56 sm:w-56">
             {pieData.length > 0 ? (
               <>
-                <div className="h-full w-full rounded-full bg-white/60 p-3 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.45)] ring-1 ring-white/80">
+                <div className="h-full w-full">
                   <Pie data={chartData} options={chartOptions} />
                 </div>
               </>

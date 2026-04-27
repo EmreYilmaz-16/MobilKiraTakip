@@ -2,15 +2,41 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import {
-  Building2, AlertTriangle, TrendingUp, Wrench, ChevronRight,
-  CheckCircle2, Phone, CalendarClock, FileText
+  Building2, AlertTriangle, TrendingUp, Wrench, FileText
 } from 'lucide-react';
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR');
 
-const dayDiff = (dateStr) => {
-  const diff = Math.round((new Date(dateStr) - new Date()) / 86400000);
-  return diff;
+const monthName = new Date().toLocaleDateString('tr-TR', { month: 'long' });
+
+const propertyTypeConfig = [
+  { key: 'residential', label: 'Konut', color: '#1f2937' },
+  { key: 'commercial', label: 'Ticari', color: '#0f766e' },
+  { key: 'parking', label: 'Otopark', color: '#d97706' },
+  { key: 'other', label: 'Diğer', color: '#7c3aed' }
+];
+
+const buildPieSegments = (properties) => {
+  const total = propertyTypeConfig.reduce((sum, item) => sum + Number(properties?.[item.key] ?? 0), 0);
+
+  if (!total) {
+    return [];
+  }
+
+  let cumulative = 0;
+  return propertyTypeConfig.map((item) => {
+    const value = Number(properties?.[item.key] ?? 0);
+    const fraction = value / total;
+    const start = cumulative;
+    cumulative += fraction;
+
+    return {
+      ...item,
+      value,
+      dashArray: `${fraction * 100} ${100 - fraction * 100}`,
+      dashOffset: -start * 100
+    };
+  }).filter((item) => item.value > 0);
 };
 
 export default function Dashboard() {
@@ -33,12 +59,11 @@ export default function Dashboard() {
 
   if (isLoading) return <div className="flex items-center justify-center h-48 text-gray-400">Yükleniyor...</div>;
 
-  const { properties, payments, contracts, expiring_contracts, overdue_payments, recent_payments, open_maintenance } = data || {};
+  const { properties, payments, contracts, open_maintenance } = data || {};
+  const pieSegments = buildPieSegments(properties);
 
   return (
     <div className="space-y-3">
-      <h1 className="text-lg font-semibold text-gray-900">Özet</h1>
-
       {/* Ana istatistikler */}
       <div className="grid grid-cols-2 gap-3">
         <div className="card cursor-pointer active:bg-gray-50 space-y-2" onClick={() => navigate('/properties')}>
@@ -46,7 +71,6 @@ export default function Dashboard() {
             <Building2 size={16} className="text-primary-600" />
             <span className="text-xs text-gray-500">Mülkler</span>
           </div>
-          <div className="text-2xl font-bold">{properties?.total ?? 0}</div>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'rented' }); }} className={`${badgeClassName} justify-start bg-green-100 text-green-700`}>
               {properties?.rented ?? 0} kiralık
@@ -68,7 +92,6 @@ export default function Dashboard() {
             <FileText size={16} className="text-indigo-600" />
             <span className="text-xs text-gray-500">Sözleşmeler</span>
           </div>
-          <div className="text-2xl font-bold">{(Number(contracts?.active ?? 0) + Number(contracts?.expired ?? 0)) || 0}</div>
           <div className="grid grid-cols-1 gap-2 mt-2">
             <button type="button" onClick={(e) => { e.stopPropagation(); goToContractFilter({ expiry_filter: 'expired' }); }} className={`${badgeClassName} justify-start bg-red-100 text-red-700`}>
               {contracts?.expired ?? 0} bitenler
@@ -85,7 +108,7 @@ export default function Dashboard() {
         <div className="card cursor-pointer active:bg-gray-50" onClick={() => navigate('/payments')}>
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp size={16} className="text-green-600" />
-            <span className="text-xs text-gray-500">Bu Ay Tahsilat</span>
+            <span className="text-xs text-gray-500">{monthName.charAt(0).toUpperCase() + monthName.slice(1)} Tahsilat</span>
           </div>
           <div className="text-xl font-bold text-green-600">₺{fmt(payments?.collected_this_month)}</div>
           {Number(payments?.pending_this_month) > 0 && (
@@ -103,102 +126,55 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Gecikmiş ödemeler listesi */}
-      {overdue_payments?.length > 0 && (
-        <div className="card">
-          <h2 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
-            <AlertTriangle size={15} />
-            Gecikmiş Ödemeler ({overdue_payments.length})
-          </h2>
-          <div className="divide-y divide-gray-100">
-            {overdue_payments.map((p) => {
-              const days = Math.abs(dayDiff(p.due_date));
-              return (
-                <div key={p.id} className="py-2 flex items-center justify-between" onClick={() => navigate('/payments')}>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{p.property_name}</div>
-                    <div className="text-xs text-gray-500">{p.tenant_name}</div>
-                    {p.phone && (
-                      <a href={`tel:${p.phone}`} onClick={(e) => e.stopPropagation()}
-                        className="text-xs text-blue-500 flex items-center gap-0.5 w-fit mt-0.5">
-                        <Phone size={10} /> {p.phone}
-                      </a>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0 ml-2">
-                    <div className="text-sm font-bold text-red-600">₺{fmt(p.amount)}</div>
-                    <div className="text-xs text-red-400">{days} gün geç</div>
-                  </div>
-                </div>
-              );
-            })}
+      <div className="card">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-gray-800">Mülk Tipleri</div>
+            <div className="text-xs text-gray-500 mt-1">Portföy dağılımı</div>
           </div>
-          <button onClick={() => navigate('/payments')}
-            className="mt-2 w-full text-xs text-center text-gray-700 py-1.5 border border-gray-200 rounded-lg">
-            Tüm ödemelere git →
-          </button>
-        </div>
-      )}
-
-      {/* Yaklaşan sözleşme bitişleri */}
-      {expiring_contracts?.length > 0 && (
-        <div className="card">
-          <h2 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
-            <CalendarClock size={15} />
-            Yaklaşan Sözleşme Bitişleri
-          </h2>
-          <div className="divide-y divide-gray-100">
-            {expiring_contracts.map((c) => {
-              const days = dayDiff(c.end_date);
-              return (
-                <div key={c.id} className="py-2 flex items-center justify-between cursor-pointer"
-                  onClick={() => navigate('/contracts')}>
-                  <div>
-                    <div className="text-sm font-medium">{c.property_name}</div>
-                    <div className="text-xs text-gray-500">{c.tenant_name}</div>
-                    <div className="text-xs text-gray-400">₺{fmt(c.monthly_rent)}/ay</div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="text-right">
-                      <div className="text-xs text-amber-600 font-medium">
-                        {new Date(c.end_date).toLocaleDateString('tr-TR')}
-                      </div>
-                      <div className="text-xs text-amber-500">{days} gün kaldı</div>
-                    </div>
-                    <ChevronRight size={14} className="text-gray-400" />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Son tahsilatlar */}
-      {recent_payments?.length > 0 && (
-        <div className="card">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
-            <CheckCircle2 size={15} className="text-green-500" />
-            Son Tahsilatlar
-          </h2>
-          <div className="divide-y divide-gray-100">
-            {recent_payments.map((p) => (
-              <div key={p.id} className="py-2 flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{p.property_name}</div>
-                  <div className="text-xs text-gray-500">{p.tenant_name}</div>
-                </div>
-                <div className="text-right shrink-0 ml-2">
-                  <div className="text-sm font-bold text-green-600">₺{fmt(p.amount)}</div>
-                  <div className="text-xs text-gray-400">
-                    {new Date(p.payment_date).toLocaleDateString('tr-TR')}
-                  </div>
-                </div>
+          <div className="relative h-28 w-28 shrink-0">
+            {pieSegments.length > 0 ? (
+              <svg viewBox="0 0 42 42" className="h-28 w-28 -rotate-90">
+                <circle cx="21" cy="21" r="15.915" fill="none" stroke="#e5e7eb" strokeWidth="6" />
+                {pieSegments.map((segment) => (
+                  <circle
+                    key={segment.key}
+                    cx="21"
+                    cy="21"
+                    r="15.915"
+                    fill="none"
+                    stroke={segment.color}
+                    strokeWidth="6"
+                    strokeDasharray={segment.dashArray}
+                    strokeDashoffset={segment.dashOffset}
+                  />
+                ))}
+              </svg>
+            ) : (
+              <div className="h-28 w-28 rounded-full border-8 border-gray-200 flex items-center justify-center text-xs text-gray-400">
+                Veri yok
               </div>
-            ))}
+            )}
           </div>
         </div>
-      )}
+
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          {propertyTypeConfig.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => goToPropertyFilter({ type: item.key })}
+              className="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 text-left active:bg-gray-50"
+            >
+              <span className="flex items-center gap-2 text-xs text-gray-600">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                {item.label}
+              </span>
+              <span className="text-sm font-semibold text-gray-900">{properties?.[item.key] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {open_maintenance > 0 && (
         <button

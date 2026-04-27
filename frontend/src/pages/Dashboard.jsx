@@ -16,13 +16,6 @@ const propertyTypeConfig = [
   { key: 'other', label: 'Diğer', color: '#7c3aed' }
 ];
 
-const propertyStatusConfig = [
-  { key: 'rented', label: 'Kiralık', color: '#16a34a' },
-  { key: 'available', label: 'Boş', color: '#2563eb' },
-  { key: 'for_sale', label: 'Satılık', color: '#9333ea' },
-  { key: 'maintenance', label: 'Bakımda', color: '#ea580c' }
-];
-
 const buildPieSegments = (data, config) => {
   const total = config.reduce((sum, item) => sum + Number(data?.[item.key] ?? 0), 0);
 
@@ -71,7 +64,7 @@ export default function Dashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-48 text-gray-400">Yükleniyor...</div>;
 
   const { properties, payments, contracts, open_maintenance } = data || {};
-  const pieSegments = buildPieSegments(properties, propertyStatusConfig);
+  const pieSegments = buildPieSegments(properties, propertyTypeConfig);
 
   return (
     <div className="space-y-3">
@@ -158,7 +151,7 @@ export default function Dashboard() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-sm font-semibold text-gray-800">Mülk Tipleri</div>
-            <div className="text-xs text-gray-500 mt-1">Grafikte mülk durumları gösterilir</div>
+            <div className="text-xs text-gray-500 mt-1">Portföy dağılımı</div>
           </div>
           <div className="relative h-28 w-28 shrink-0">
             {pieSegments.length > 0 ? (
@@ -184,23 +177,6 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          {propertyStatusConfig.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => goToPropertyFilter({ status: item.key })}
-              className="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 text-left active:bg-gray-50"
-            >
-              <span className="flex items-center gap-2 text-xs text-gray-600">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                {item.label}
-              </span>
-              <span className="text-sm font-semibold text-gray-900">{properties?.[item.key] ?? 0}</span>
-            </button>
-          ))}
         </div>
 
         <div className="grid grid-cols-2 gap-2 mt-3">

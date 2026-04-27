@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/client';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FileText } from 'lucide-react';
 import DocumentPanel from '../../components/DocumentPanel';
 
 export default function TenantForm() {
@@ -19,6 +19,8 @@ export default function TenantForm() {
   });
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
+
+  const activeContracts = (tenant?.contracts || []).filter((contract) => contract.status === 'active');
 
   useEffect(() => {
     if (tenant) reset(tenant);
@@ -94,6 +96,54 @@ export default function TenantForm() {
           <label className="label">Notlar</label>
           <textarea className="input" rows={3} {...register('notes')} />
         </div>
+
+        {isEdit && (
+          <div className="card space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-gray-800 font-semibold">
+                <FileText size={16} />
+                <span>Aktif Sözleşmeler</span>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary py-2 px-3 text-sm"
+                onClick={() => navigate(`/contracts?tenant_id=${id}&status=active`)}
+              >
+                Tümünü Gör
+              </button>
+            </div>
+
+            {!activeContracts.length ? (
+              <div className="text-sm text-gray-500">Bu kiracıya ait aktif sözleşme bulunmuyor.</div>
+            ) : (
+              <div className="space-y-2">
+                {activeContracts.map((contract) => (
+                  <button
+                    key={contract.id}
+                    type="button"
+                    onClick={() => navigate(`/contracts/edit/${contract.id}`)}
+                    className="w-full rounded-xl border border-gray-100 px-3 py-3 text-left hover:bg-gray-50"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-800">{contract.property_name}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {new Date(contract.start_date).toLocaleDateString('tr-TR')} - {new Date(contract.end_date).toLocaleDateString('tr-TR')}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="badge bg-green-100 text-green-700">Aktif</div>
+                        <div className="text-xs font-semibold text-gray-700 mt-1">
+                          ₺{Number(contract.monthly_rent).toLocaleString('tr-TR')}/ay
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <DocumentPanel
           entityType="tenant"

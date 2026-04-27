@@ -44,6 +44,7 @@ export default function ContractList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const tenantIdFilter = searchParams.get('tenant_id') || '';
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [expiryFilter, setExpiryFilter] = useState(searchParams.get('expiry_filter') || '');
   const [terminatingContract, setTerminatingContract] = useState(null); // { id, deposit_amount }
@@ -58,15 +59,23 @@ export default function ContractList() {
 
   useEffect(() => {
     const nextParams = {};
+    if (tenantIdFilter) nextParams.tenant_id = tenantIdFilter;
     if (statusFilter) nextParams.status = statusFilter;
     if (expiryFilter) nextParams.expiry_filter = expiryFilter;
     setSearchParams(nextParams, { replace: true });
-  }, [statusFilter, expiryFilter, setSearchParams]);
+  }, [tenantIdFilter, statusFilter, expiryFilter, setSearchParams]);
+
+  const { data: tenant } = useQuery({
+    queryKey: ['tenant', tenantIdFilter],
+    queryFn: () => api.get(`/tenants/${tenantIdFilter}`).then((r) => r.data),
+    enabled: Boolean(tenantIdFilter)
+  });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['contracts', statusFilter, expiryFilter],
+    queryKey: ['contracts', tenantIdFilter, statusFilter, expiryFilter],
     queryFn: () => api.get('/contracts', {
       params: {
+        tenant_id: tenantIdFilter || undefined,
         status: statusFilter || undefined,
         expiry_filter: expiryFilter || undefined,
         limit: 50
@@ -111,7 +120,14 @@ export default function ContractList() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Sözleşmeler</h1>
+        <div>
+          <h1 className="text-xl font-bold">Sözleşmeler</h1>
+          {tenant && (
+            <div className="text-sm text-gray-500 mt-1">
+              {tenant.first_name} {tenant.last_name} icin listeleme
+            </div>
+          )}
+        </div>
         <button onClick={() => navigate('/contracts/new')} className="btn-primary py-2 px-3 text-sm">
           <Plus size={16} /> Ekle
         </button>

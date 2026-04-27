@@ -32,7 +32,8 @@ export default function DocumentPanel({ entityType, entityId, title }) {
       formData.append('entity_type', entityType);
       formData.append('entity_id', entityId);
       return api.post('/documents', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000
       });
     },
     onSuccess: () => {

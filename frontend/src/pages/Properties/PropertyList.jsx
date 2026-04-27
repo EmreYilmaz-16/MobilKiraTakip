@@ -11,6 +11,7 @@ const statusColor = {
   maintenance: 'bg-orange-100 text-orange-700',
   for_sale: 'bg-purple-100 text-purple-700'
 };
+const badgeClassName = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-95';
 
 export default function PropertyList() {
   const navigate = useNavigate();
@@ -49,6 +50,16 @@ export default function PropertyList() {
     }).then((r) => r.data)
   });
 
+  const { data: summary } = useQuery({
+    queryKey: ['property-summary-dashboard'],
+    queryFn: () => api.get('/reports/dashboard').then((r) => r.data.properties)
+  });
+
+  const goToPropertyFilter = (params) => {
+    const query = new URLSearchParams(params).toString();
+    navigate(`/properties${query ? `?${query}` : ''}`);
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -56,6 +67,45 @@ export default function PropertyList() {
         <button onClick={() => navigate('/properties/new')} className="btn-primary py-2 px-3 text-sm">
           <Plus size={16} /> Ekle
         </button>
+      </div>
+
+      <div className="card space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <div className="text-xs text-gray-500">Mülk Özeti</div>
+            <div className="text-2xl font-bold text-gray-900">{summary?.total ?? 0}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => goToPropertyFilter({ status: 'rented' })} className={`${badgeClassName} justify-start bg-green-100 text-green-700`}>
+            {summary?.rented ?? 0} kiralık
+          </button>
+          <button type="button" onClick={() => goToPropertyFilter({ status: 'available' })} className={`${badgeClassName} justify-start bg-blue-100 text-blue-700`}>
+            {summary?.available ?? 0} boş
+          </button>
+          <button type="button" onClick={() => goToPropertyFilter({ status: 'for_sale' })} className={`${badgeClassName} justify-start bg-purple-100 text-purple-700`}>
+            {summary?.for_sale ?? 0} satılık
+          </button>
+          <button type="button" onClick={() => goToPropertyFilter({ status: 'maintenance' })} className={`${badgeClassName} justify-start bg-orange-100 text-orange-700`}>
+            {summary?.maintenance ?? 0} bakımda
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+          <button type="button" onClick={() => goToPropertyFilter({ type: 'residential' })} className={`${badgeClassName} justify-start bg-slate-100 text-slate-700`}>
+            {summary?.residential ?? 0} konut
+          </button>
+          <button type="button" onClick={() => goToPropertyFilter({ type: 'commercial' })} className={`${badgeClassName} justify-start bg-slate-100 text-slate-700`}>
+            {summary?.commercial ?? 0} ticari
+          </button>
+          <button type="button" onClick={() => goToPropertyFilter({ type: 'parking' })} className={`${badgeClassName} justify-start bg-slate-50 text-slate-600`}>
+            {summary?.parking ?? 0} otopark
+          </button>
+          <button type="button" onClick={() => goToPropertyFilter({ type: 'other' })} className={`${badgeClassName} justify-start bg-slate-50 text-slate-600`}>
+            {summary?.other ?? 0} diğer
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_160px_160px_180px]">

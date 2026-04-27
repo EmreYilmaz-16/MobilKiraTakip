@@ -61,20 +61,6 @@ export default function Dashboard() {
               {properties?.maintenance ?? 0} bakımda
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 pt-2 border-t border-gray-100">
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'residential' }); }} className={`${badgeClassName} justify-start bg-slate-100 text-slate-700`}>
-              {properties?.residential ?? 0} konut
-            </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'commercial' }); }} className={`${badgeClassName} justify-start bg-slate-100 text-slate-700`}>
-              {properties?.commercial ?? 0} ticari
-            </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'parking' }); }} className={`${badgeClassName} justify-start bg-slate-50 text-slate-600`}>
-              {properties?.parking ?? 0} otopark
-            </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'other' }); }} className={`${badgeClassName} justify-start bg-slate-50 text-slate-600`}>
-              {properties?.other ?? 0} diğer
-            </button>
-          </div>
         </div>
 
         <div className="card cursor-pointer active:bg-gray-50" onClick={() => navigate('/contracts')}>

@@ -4,7 +4,10 @@ import api from '../api/client';
 import {
   Building2, AlertTriangle, TrendingUp, Wrench, FileText
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Pie } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR');
 
@@ -30,24 +33,6 @@ const buildPieData = (data, config) => config
     value: Number(data?.[item.key] ?? 0)
   }))
   .filter((item) => item.value > 0);
-
-function PropertyStatusTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null;
-
-  const item = payload[0]?.payload;
-  if (!item) return null;
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
-      <div className="text-xs font-medium text-slate-500">Mülk Durumu</div>
-      <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-800">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-        {item.label}
-      </div>
-      <div className="mt-1 text-xs text-slate-600">{fmt(item.value)} adet</div>
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -76,6 +61,45 @@ export default function Dashboard() {
   const { properties, payments, contracts, open_maintenance } = data || {};
   const pieData = buildPieData(properties, propertyStatusConfig);
   const totalProperties = propertyStatusConfig.reduce((sum, item) => sum + Number(properties?.[item.key] ?? 0), 0);
+  const chartData = {
+    labels: pieData.map((item) => item.label),
+    datasets: [
+      {
+        data: pieData.map((item) => item.value),
+        backgroundColor: pieData.map((item) => item.color),
+        borderColor: '#ffffff',
+        borderWidth: 4,
+        hoverBorderWidth: 4,
+        hoverOffset: 10,
+        spacing: 2
+      }
+    ]
+  };
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      animateRotate: true,
+      duration: 900
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+        padding: 12,
+        titleFont: { size: 12, weight: '600' },
+        bodyFont: { size: 13, weight: '600' },
+        displayColors: true,
+        callbacks: {
+          label(context) {
+            const value = Number(context.raw || 0);
+            const percent = totalProperties > 0 ? Math.round((value / totalProperties) * 100) : 0;
+            return `${context.label}: ${fmt(value)} adet (%${percent})`;
+          }
+        }
+      }
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -198,33 +222,9 @@ export default function Dashboard() {
           <div className="relative mx-auto h-52 w-52 sm:h-56 sm:w-56">
             {pieData.length > 0 ? (
               <>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <defs>
-                      <filter id="pieShadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feDropShadow dx="0" dy="8" stdDeviation="10" floodOpacity="0.14" />
-                      </filter>
-                    </defs>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      nameKey="label"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={92}
-                      innerRadius={0}
-                      paddingAngle={3}
-                      cornerRadius={6}
-                      stroke="none"
-                      filter="url(#pieShadow)"
-                    >
-                      {pieData.map((segment) => (
-                        <Cell key={segment.key} fill={segment.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<PropertyStatusTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="h-full w-full rounded-full bg-white/60 p-3 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.45)] ring-1 ring-white/80">
+                  <Pie data={chartData} options={chartOptions} />
+                </div>
                 <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
                   <div className="rounded-full bg-white/90 px-4 py-2 text-center shadow-sm ring-1 ring-slate-200 backdrop-blur-sm">
                     <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Toplam</div>

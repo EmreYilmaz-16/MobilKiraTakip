@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import {
   Building2, AlertTriangle, TrendingUp, Wrench, ChevronRight,
-  Clock, CheckCircle2, Phone, CalendarClock, FileText
+  CheckCircle2, Phone, CalendarClock, FileText
 } from 'lucide-react';
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR');
@@ -36,18 +36,18 @@ export default function Dashboard() {
   const { properties, payments, contracts, expiring_contracts, overdue_payments, recent_payments, open_maintenance } = data || {};
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">Özet</h1>
+    <div className="space-y-3">
+      <h1 className="text-lg font-semibold text-gray-900">Özet</h1>
 
       {/* Ana istatistikler */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="card cursor-pointer active:bg-gray-50" onClick={() => navigate('/properties')}>
+        <div className="card cursor-pointer active:bg-gray-50 space-y-2" onClick={() => navigate('/properties')}>
           <div className="flex items-center gap-2 mb-1">
             <Building2 size={16} className="text-primary-600" />
             <span className="text-xs text-gray-500">Mülkler</span>
           </div>
           <div className="text-2xl font-bold">{properties?.total ?? 0}</div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2">
+          <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'rented' }); }} className={`${badgeClassName} justify-start bg-green-100 text-green-700`}>
               {properties?.rented ?? 0} kiralık
             </button>
@@ -63,7 +63,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="card cursor-pointer active:bg-gray-50" onClick={() => navigate('/contracts')}>
+        <div className="card cursor-pointer active:bg-gray-50 space-y-2" onClick={() => navigate('/contracts')}>
           <div className="flex items-center gap-2 mb-1">
             <FileText size={16} className="text-indigo-600" />
             <span className="text-xs text-gray-500">Sözleşmeler</span>
@@ -105,8 +105,8 @@ export default function Dashboard() {
 
       {/* Gecikmiş ödemeler listesi */}
       {overdue_payments?.length > 0 && (
-        <div className="card border-l-4 border-red-400">
-          <h2 className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-1.5">
+        <div className="card">
+          <h2 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
             <AlertTriangle size={15} />
             Gecikmiş Ödemeler ({overdue_payments.length})
           </h2>
@@ -114,7 +114,7 @@ export default function Dashboard() {
             {overdue_payments.map((p) => {
               const days = Math.abs(dayDiff(p.due_date));
               return (
-                <div key={p.id} className="py-2.5 flex items-center justify-between" onClick={() => navigate('/payments')}>
+                <div key={p.id} className="py-2 flex items-center justify-between" onClick={() => navigate('/payments')}>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{p.property_name}</div>
                     <div className="text-xs text-gray-500">{p.tenant_name}</div>
@@ -134,7 +134,7 @@ export default function Dashboard() {
             })}
           </div>
           <button onClick={() => navigate('/payments')}
-            className="mt-2 w-full text-xs text-center text-red-600 py-1.5 border border-red-200 rounded-lg">
+            className="mt-2 w-full text-xs text-center text-gray-700 py-1.5 border border-gray-200 rounded-lg">
             Tüm ödemelere git →
           </button>
         </div>
@@ -142,8 +142,8 @@ export default function Dashboard() {
 
       {/* Yaklaşan sözleşme bitişleri */}
       {expiring_contracts?.length > 0 && (
-        <div className="card border-l-4 border-amber-400">
-          <h2 className="text-sm font-semibold text-amber-700 mb-3 flex items-center gap-1.5">
+        <div className="card">
+          <h2 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
             <CalendarClock size={15} />
             Yaklaşan Sözleşme Bitişleri
           </h2>
@@ -151,7 +151,7 @@ export default function Dashboard() {
             {expiring_contracts.map((c) => {
               const days = dayDiff(c.end_date);
               return (
-                <div key={c.id} className="py-2.5 flex items-center justify-between cursor-pointer"
+                <div key={c.id} className="py-2 flex items-center justify-between cursor-pointer"
                   onClick={() => navigate('/contracts')}>
                   <div>
                     <div className="text-sm font-medium">{c.property_name}</div>
@@ -200,29 +200,19 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Alt bilgiler */}
-      <div className="flex gap-3">
-        {open_maintenance > 0 && (
-          <div className="card flex-1 cursor-pointer" onClick={() => navigate('/maintenance')}>
-            <div className="flex items-center gap-2">
-              <Wrench size={16} className="text-orange-500" />
-              <div>
-                <div className="text-lg font-bold text-orange-500">{open_maintenance}</div>
-                <div className="text-xs text-gray-500">Açık Bakım</div>
-              </div>
-            </div>
-          </div>
-        )}
-        <div className="card flex-1 cursor-pointer" onClick={() => navigate('/payments')}>
+      {open_maintenance > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate('/maintenance')}
+          className="card w-full flex items-center justify-between text-left active:bg-gray-50"
+        >
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-yellow-500" />
-            <div>
-              <div className="text-lg font-bold text-yellow-600">{Number(payments?.pending_this_month) > 0 ? `₺${fmt(payments.pending_this_month)}` : '—'}</div>
-              <div className="text-xs text-gray-500">Bu Ay Bekleyen</div>
-            </div>
+            <Wrench size={16} className="text-orange-500" />
+            <span className="text-sm text-gray-700">Açık Bakım</span>
           </div>
-        </div>
-      </div>
+          <span className="text-sm font-semibold text-orange-600">{open_maintenance}</span>
+        </button>
+      )}
     </div>
   );
 }

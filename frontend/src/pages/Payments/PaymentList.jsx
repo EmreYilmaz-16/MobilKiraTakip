@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CheckCircle, PlusCircle } from 'lucide-react';
 import api from '../../api/client';
 
@@ -14,7 +15,9 @@ const statusLabel = { paid: 'Ödendi', pending: 'Bekliyor', late: 'Gecikti', par
 
 export default function PaymentList() {
   const qc = useQueryClient();
-  const [status, setStatus] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [status, setStatus] = useState(searchParams.get('status') || '');
+  const [overdueOnly, setOverdueOnly] = useState(searchParams.get('overdue') === 'true');
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState(null);
 
@@ -22,9 +25,38 @@ export default function PaymentList() {
   const [genYear, setGenYear]   = useState(now.getFullYear());
   const [genMonth, setGenMonth] = useState(now.getMonth() + 1);
 
+  useEffect(() => {
+    setStatus(searchParams.get('status') || '');
+    setOverdueOnly(searchParams.get('overdue') === 'true');
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (overdueOnly) {
+      nextParams.set('overdue', 'true');
+      nextParams.delete('status');
+    } else {
+      nextParams.delete('overdue');
+      if (status) {
+        nextParams.set('status', status);
+      } else {
+        nextParams.delete('status');
+      }
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }, [overdueOnly, searchParams, setSearchParams, status]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['payments', status],
-    queryFn: () => api.get('/payments', { params: { status: status || undefined, limit: 100 } }).then((r) => r.data)
+    queryKey: ['payments', status, overdueOnly],
+    queryFn: () => api.get('/payments', {
+      params: {
+        status: overdueOnly ? undefined : status || undefined,
+        overdue: overdueOnly ? 'true' : undefined,
+        limit: 100
+      }
+    }).then((r) => r.data)
   });
 
   const markPaid = useMutation({
@@ -71,8 +103,19 @@ export default function PaymentList() {
         {genResult && <p className="text-xs text-blue-700 font-medium">{genResult}</p>}
       </div>
 
-      <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
+      <select className="input" value={overdueOnly ? 'overdue' : status} onChange={(e) => {
+        const value = e.target.value;
+        if (value === 'overdue') {
+          setOverdueOnly(true);
+          setStatus('');
+          return;
+        }
+
+        setOverdueOnly(false);
+        setStatus(value);
+      }}>
         <option value="">Tüm Durumlar</option>
+        <option value="overdue">Gecikmiş</option>
         <option value="pending">Bekliyor</option>
         <option value="late">Gecikmiş</option>
         <option value="paid">Ödendi</option>

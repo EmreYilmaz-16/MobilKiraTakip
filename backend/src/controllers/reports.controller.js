@@ -22,6 +22,8 @@ const dashboard = async (req, res, next) => {
       query(`SELECT
                COALESCE(SUM(amount) FILTER (WHERE status = 'paid'
                  AND date_trunc('month', payment_date) = date_trunc('month', NOW())), 0) AS collected_this_month,
+               COALESCE(SUM(amount) FILTER (WHERE status != 'cancelled'
+                 AND date_trunc('month', due_date) = date_trunc('month', NOW())), 0) AS due_this_month,
                COALESCE(SUM(amount) FILTER (WHERE status IN ('late','pending') AND due_date < CURRENT_DATE), 0) AS overdue_total,
                COUNT(*) FILTER (WHERE status IN ('late','pending') AND due_date < CURRENT_DATE) AS overdue_count,
                COALESCE(SUM(amount) FILTER (WHERE status = 'pending'

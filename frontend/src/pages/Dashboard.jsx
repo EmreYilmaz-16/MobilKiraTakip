@@ -41,6 +41,10 @@ const buildPieSegments = (properties) => {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const goToPaymentFilter = (params) => {
+    const query = new URLSearchParams(params).toString();
+    navigate(`/payments${query ? `?${query}` : ''}`);
+  };
   const goToPropertyFilter = (params) => {
     const query = new URLSearchParams(params).toString();
     navigate(`/properties${query ? `?${query}` : ''}`);
@@ -117,6 +121,15 @@ export default function Dashboard() {
         </div>
 
         <div className="card cursor-pointer active:bg-gray-50" onClick={() => navigate('/payments')}>
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp size={16} className="text-blue-600" />
+            <span className="text-xs text-gray-500">Bu Ay Tahakkuk</span>
+          </div>
+          <div className="text-xl font-bold text-blue-600">₺{fmt(payments?.due_this_month)}</div>
+          <div className="text-xs text-gray-500 mt-1">Toplam yapılması gereken</div>
+        </div>
+
+        <div className="card cursor-pointer active:bg-gray-50" onClick={() => goToPaymentFilter({ overdue: 'true' })}>
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle size={16} className="text-red-500" />
             <span className="text-xs text-gray-500">Gecikmiş</span>

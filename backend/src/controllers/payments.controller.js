@@ -8,13 +8,19 @@ const list = async (req, res, next) => {
        WHERE status = 'pending' AND due_date < CURRENT_DATE`
     );
 
-    const { status, contract_id, from_date, to_date, page = 1, limit = 20 } = req.query;
+    const { status, overdue, contract_id, from_date, to_date, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     const conditions = [];
     const params = [];
     let i = 1;
 
-    if (status)      { conditions.push(`p.status = $${i++}`); params.push(status); }
+    if (overdue === 'true') {
+      conditions.push(`p.status IN ('late','pending')`);
+      conditions.push(`p.due_date < CURRENT_DATE`);
+    } else if (status) {
+      conditions.push(`p.status = $${i++}`);
+      params.push(status);
+    }
     if (contract_id) { conditions.push(`p.contract_id = $${i++}`); params.push(contract_id); }
     if (from_date)   { conditions.push(`p.due_date >= $${i++}`); params.push(from_date); }
     if (to_date)     { conditions.push(`p.due_date <= $${i++}`); params.push(to_date); }

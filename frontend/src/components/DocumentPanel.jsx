@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileText, Paperclip, Trash2, Upload } from 'lucide-react';
 import api from '../api/client';
@@ -12,7 +12,9 @@ const formatFileSize = (size) => {
 
 export default function DocumentPanel({ entityType, entityId, title }) {
   const fileInputRef = useRef(null);
+  const [localError, setLocalError] = useState('');
   const qc = useQueryClient();
+  const maxUploadBytes = 25 * 1024 * 1024;
 
   const queryKey = ['documents', entityType, entityId];
 
@@ -24,6 +26,7 @@ export default function DocumentPanel({ entityType, entityId, title }) {
 
   const uploadMutation = useMutation({
     mutationFn: async (file) => {
+      setLocalError('');
       const formData = new FormData();
       formData.append('file', file);
       formData.append('entity_type', entityType);
@@ -33,6 +36,7 @@ export default function DocumentPanel({ entityType, entityId, title }) {
       });
     },
     onSuccess: () => {
+      setLocalError('');
       qc.invalidateQueries({ queryKey });
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -80,17 +84,29 @@ export default function DocumentPanel({ entityType, entityId, title }) {
             ref={fileInputRef}
             type="file"
             className="hidden"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) uploadMutation.mutate(file);
+
+              if (!file) return;
+
+              if (file.size > maxUploadBytes) {
+                setLocalError('Secilen dosya 25 MB sinirini asiyor. Telefonda daha dusuk boyutlu fotograf secin veya sikistirin.');
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                return;
+              }
+
+              uploadMutation.mutate(file);
             }}
           />
         </label>
       </div>
 
-      {uploadMutation.error && (
-        <div className="text-sm text-red-600">{uploadMutation.error.message}</div>
+      {(localError || uploadMutation.error) && (
+        <div className="text-sm text-red-600">{localError || uploadMutation.error.message}</div>
       )}
+
+      <div className="text-xs text-gray-500">Telefon fotografi ve diger belgeler icin maksimum dosya boyutu 25 MB.</div>
 
       {isLoading ? (
         <div className="text-sm text-gray-400">Belgeler yükleniyor...</div>

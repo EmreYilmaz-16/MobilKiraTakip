@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
-        name: 'Kira Takip',
-        short_name: 'KiraTakip',
+        name: 'Mulk Yonetim Sistemi',
+        short_name: 'Mulk Yonetim',
         description: 'Mülk ve kira yönetim uygulaması',
         theme_color: '#2563eb',
         background_color: '#1e293b',

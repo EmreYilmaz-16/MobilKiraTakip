@@ -7,7 +7,7 @@ export default function TopBar() {
     <header className="bg-primary-700 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow">
       <div className="flex items-center gap-2">
         <Building2 size={22} />
-        <span className="font-bold text-base">Kira Takip</span>
+        <span className="font-bold text-base">Mulk Yonetim Sistemi</span>
       </div>
       <div className="flex items-center gap-3">
         <span className="text-xs opacity-80 hidden sm:inline">{user?.name}</span>

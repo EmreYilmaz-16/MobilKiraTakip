@@ -211,8 +211,8 @@ export default function Dashboard() {
                       nameKey="label"
                       cx="50%"
                       cy="50%"
-                      outerRadius={90}
-                      innerRadius={42}
+                      outerRadius={92}
+                      innerRadius={0}
                       paddingAngle={3}
                       cornerRadius={6}
                       stroke="none"
@@ -225,10 +225,10 @@ export default function Dashboard() {
                     <Tooltip content={<PropertyStatusTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="rounded-full bg-white/90 px-5 py-4 text-center shadow-sm ring-1 ring-slate-200 backdrop-blur-sm">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Toplam</div>
-                    <div className="mt-1 text-2xl font-bold text-slate-900">{fmt(totalProperties)}</div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+                  <div className="rounded-full bg-white/90 px-4 py-2 text-center shadow-sm ring-1 ring-slate-200 backdrop-blur-sm">
+                    <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Toplam</div>
+                    <div className="mt-0.5 text-lg font-bold text-slate-900">{fmt(totalProperties)}</div>
                   </div>
                 </div>
               </>

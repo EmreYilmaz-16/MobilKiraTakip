@@ -19,6 +19,7 @@ export default function Dashboard() {
     const query = new URLSearchParams(params).toString();
     navigate(`/properties${query ? `?${query}` : ''}`);
   };
+  const badgeClassName = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-95';
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
@@ -43,30 +44,30 @@ export default function Dashboard() {
           </div>
           <div className="text-2xl font-bold">{properties?.total ?? 0}</div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2">
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'rented' }); }} className="text-xs text-left text-green-600 hover:underline">
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'rented' }); }} className={`${badgeClassName} justify-start bg-green-100 text-green-700`}>
               {properties?.rented ?? 0} kiralık
             </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'available' }); }} className="text-xs text-left text-blue-600 hover:underline">
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'available' }); }} className={`${badgeClassName} justify-start bg-blue-100 text-blue-700`}>
               {properties?.available ?? 0} boş
             </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'for_sale' }); }} className="text-xs text-left text-purple-600 hover:underline">
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'for_sale' }); }} className={`${badgeClassName} justify-start bg-purple-100 text-purple-700`}>
               {properties?.for_sale ?? 0} satılık
             </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'maintenance' }); }} className="text-xs text-left text-orange-600 hover:underline">
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'maintenance' }); }} className={`${badgeClassName} justify-start bg-orange-100 text-orange-700`}>
               {properties?.maintenance ?? 0} bakımda
             </button>
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 pt-2 border-t border-gray-100">
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'residential' }); }} className="text-xs text-left text-slate-600 hover:underline">
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'residential' }); }} className={`${badgeClassName} justify-start bg-slate-100 text-slate-700`}>
               {properties?.residential ?? 0} konut
             </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'commercial' }); }} className="text-xs text-left text-slate-600 hover:underline">
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'commercial' }); }} className={`${badgeClassName} justify-start bg-slate-100 text-slate-700`}>
               {properties?.commercial ?? 0} ticari
             </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'parking' }); }} className="text-xs text-left text-slate-500 hover:underline">
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'parking' }); }} className={`${badgeClassName} justify-start bg-slate-50 text-slate-600`}>
               {properties?.parking ?? 0} otopark
             </button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'other' }); }} className="text-xs text-left text-slate-500 hover:underline">
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'other' }); }} className={`${badgeClassName} justify-start bg-slate-50 text-slate-600`}>
               {properties?.other ?? 0} diğer
             </button>
           </div>

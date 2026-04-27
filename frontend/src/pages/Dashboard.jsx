@@ -15,6 +15,11 @@ const dayDiff = (dateStr) => {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const goToPropertyFilter = (params) => {
+    const query = new URLSearchParams(params).toString();
+    navigate(`/properties${query ? `?${query}` : ''}`);
+  };
+
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get('/reports/dashboard').then((r) => r.data),
@@ -38,16 +43,32 @@ export default function Dashboard() {
           </div>
           <div className="text-2xl font-bold">{properties?.total ?? 0}</div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2">
-            <span className="text-xs text-green-600">{properties?.rented ?? 0} kiralık</span>
-            <span className="text-xs text-blue-600">{properties?.available ?? 0} boş</span>
-            <span className="text-xs text-purple-600">{properties?.for_sale ?? 0} satılık</span>
-            <span className="text-xs text-orange-600">{properties?.maintenance ?? 0} bakımda</span>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'rented' }); }} className="text-xs text-left text-green-600 hover:underline">
+              {properties?.rented ?? 0} kiralık
+            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'available' }); }} className="text-xs text-left text-blue-600 hover:underline">
+              {properties?.available ?? 0} boş
+            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'for_sale' }); }} className="text-xs text-left text-purple-600 hover:underline">
+              {properties?.for_sale ?? 0} satılık
+            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ status: 'maintenance' }); }} className="text-xs text-left text-orange-600 hover:underline">
+              {properties?.maintenance ?? 0} bakımda
+            </button>
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 pt-2 border-t border-gray-100">
-            <span className="text-xs text-slate-600">{properties?.residential ?? 0} konut</span>
-            <span className="text-xs text-slate-600">{properties?.commercial ?? 0} ticari</span>
-            <span className="text-xs text-slate-500">{properties?.parking ?? 0} otopark</span>
-            <span className="text-xs text-slate-500">{properties?.other ?? 0} diğer</span>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'residential' }); }} className="text-xs text-left text-slate-600 hover:underline">
+              {properties?.residential ?? 0} konut
+            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'commercial' }); }} className="text-xs text-left text-slate-600 hover:underline">
+              {properties?.commercial ?? 0} ticari
+            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'parking' }); }} className="text-xs text-left text-slate-500 hover:underline">
+              {properties?.parking ?? 0} otopark
+            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); goToPropertyFilter({ type: 'other' }); }} className="text-xs text-left text-slate-500 hover:underline">
+              {properties?.other ?? 0} diğer
+            </button>
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../../api/client';
 
 const statusLabel = { available: 'Boş', rented: 'Kiralık', maintenance: 'Bakımda', for_sale: 'Satılık' };
@@ -14,17 +14,36 @@ const statusColor = {
 
 export default function PropertyList() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [siteName, setSiteName] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [status, setStatus] = useState(searchParams.get('status') || '');
+  const [siteName, setSiteName] = useState(searchParams.get('site_name') || '');
+  const [type, setType] = useState(searchParams.get('type') || '');
+
+  useEffect(() => {
+    setSearch(searchParams.get('search') || '');
+    setStatus(searchParams.get('status') || '');
+    setSiteName(searchParams.get('site_name') || '');
+    setType(searchParams.get('type') || '');
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = {};
+    if (search) nextParams.search = search;
+    if (status) nextParams.status = status;
+    if (siteName) nextParams.site_name = siteName;
+    if (type) nextParams.type = type;
+    setSearchParams(nextParams, { replace: true });
+  }, [search, status, siteName, type, setSearchParams]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['properties', search, status, siteName],
+    queryKey: ['properties', search, status, siteName, type],
     queryFn: () => api.get('/properties', {
       params: {
         search: search || undefined,
         status: status || undefined,
         site_name: siteName || undefined,
+        type: type || undefined,
         limit: 50
       }
     }).then((r) => r.data)
@@ -39,7 +58,7 @@ export default function PropertyList() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_160px_180px]">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_160px_160px_180px]">
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -55,11 +74,19 @@ export default function PropertyList() {
           value={siteName}
           onChange={(e) => setSiteName(e.target.value)}
         />
+        <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
+          <option value="">Tüm türler</option>
+          <option value="residential">Konut</option>
+          <option value="commercial">Ticari</option>
+          <option value="parking">Otopark</option>
+          <option value="other">Diğer</option>
+        </select>
         <select className="input w-32" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Tümü</option>
           <option value="available">Boş</option>
           <option value="rented">Kiralık</option>
           <option value="maintenance">Bakımda</option>
+          <option value="for_sale">Satılık</option>
         </select>
       </div>
 

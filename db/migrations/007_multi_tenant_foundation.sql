@@ -32,6 +32,7 @@ ALTER TABLE expenses ADD COLUMN IF NOT EXISTS organization_id UUID;
 ALTER TABLE maintenance_requests ADD COLUMN IF NOT EXISTS organization_id UUID;
 ALTER TABLE insurance_policies ADD COLUMN IF NOT EXISTS organization_id UUID;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check

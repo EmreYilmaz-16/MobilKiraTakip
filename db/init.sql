@@ -216,25 +216,7 @@ CREATE TABLE insurance_policies (
     mime_type       VARCHAR(120),
     file_size       BIGINT NOT NULL DEFAULT 0,
     uploaded_by     UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  );
-
-  -- ============================================================
-  -- DOCUMENTS (Belge Yönetimi)
-  -- ============================================================
-  CREATE TABLE documents (
-    id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
-    entity_type    VARCHAR(20) NOT NULL
-             CHECK (entity_type IN ('property','tenant','contract')),
-    entity_id      UUID NOT NULL,
-    original_name  VARCHAR(255) NOT NULL,
-    stored_name    VARCHAR(255) NOT NULL,
-    mime_type      VARCHAR(150),
-    file_size      BIGINT,
-    storage_path   VARCHAR(500) NOT NULL,
-    uploaded_by    UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 

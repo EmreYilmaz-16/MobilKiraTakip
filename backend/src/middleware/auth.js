@@ -13,6 +13,7 @@ const auth = (req, res, next) => {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.user = payload;
+    req.organizationId = payload.organization_id || null;
     next();
   } catch {
     return res.status(401).json({ success: false, message: 'Geçersiz token' });

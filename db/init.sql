@@ -7,15 +7,35 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- ============================================================
+-- ORGANIZATIONS (Sistemi kiralayan müşteriler)
+-- ============================================================
+CREATE TABLE organizations (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name              VARCHAR(150) NOT NULL,
+  slug              VARCHAR(160) UNIQUE NOT NULL,
+  contact_email     VARCHAR(150),
+  contact_phone     VARCHAR(20),
+  subscription_plan VARCHAR(30) NOT NULL DEFAULT 'starter'
+            CHECK (subscription_plan IN ('starter','pro','enterprise')),
+  max_users         INT NOT NULL DEFAULT 3,
+  max_properties    INT NOT NULL DEFAULT 25,
+  is_active         BOOLEAN NOT NULL DEFAULT TRUE,
+  trial_ends_at     TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
 -- USERS (Kullanıcılar)
 -- ============================================================
 CREATE TABLE users (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     name        VARCHAR(100) NOT NULL,
     email       VARCHAR(150) UNIQUE NOT NULL,
     password    VARCHAR(255) NOT NULL,
     role        VARCHAR(20) NOT NULL DEFAULT 'owner'
-                  CHECK (role IN ('owner','accountant','agent','admin')),
+          CHECK (role IN ('owner','accountant','agent','admin','platform_admin')),
     phone       VARCHAR(20),
     is_active   BOOLEAN NOT NULL DEFAULT TRUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -27,6 +47,7 @@ CREATE TABLE users (
 -- ============================================================
 CREATE TABLE buildings (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     name          VARCHAR(150) NOT NULL,
     address       TEXT NOT NULL,
     city          VARCHAR(80),
@@ -43,6 +64,7 @@ CREATE TABLE buildings (
 -- ============================================================
 CREATE TABLE properties (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     building_id     UUID REFERENCES buildings(id) ON DELETE SET NULL,
     name            VARCHAR(150) NOT NULL,
   site_name       VARCHAR(150),
@@ -66,6 +88,7 @@ CREATE TABLE properties (
 -- ============================================================
 CREATE TABLE tenants (
     id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id   UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     first_name        VARCHAR(80) NOT NULL,
     last_name         VARCHAR(80) NOT NULL,
     tc_no             VARCHAR(11),
@@ -85,6 +108,7 @@ CREATE TABLE tenants (
 -- ============================================================
 CREATE TABLE contracts (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id  UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     property_id      UUID NOT NULL REFERENCES properties(id) ON DELETE RESTRICT,
     tenant_id        UUID NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
     start_date       DATE NOT NULL,
@@ -107,6 +131,7 @@ CREATE TABLE contracts (
 -- ============================================================
 CREATE TABLE payments (
     id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     contract_id    UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     amount         NUMERIC(12,2) NOT NULL,
     due_date       DATE NOT NULL,
@@ -125,6 +150,7 @@ CREATE TABLE payments (
 -- ============================================================
 CREATE TABLE expenses (
     id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     property_id  UUID REFERENCES properties(id) ON DELETE SET NULL,
     category     VARCHAR(40) NOT NULL
                    CHECK (category IN ('maintenance','tax','insurance','dask','utility',
@@ -143,6 +169,7 @@ CREATE TABLE expenses (
 -- ============================================================
 CREATE TABLE maintenance_requests (
     id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     property_id  UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
     tenant_id    UUID REFERENCES tenants(id) ON DELETE SET NULL,
     title        VARCHAR(200) NOT NULL,
@@ -163,6 +190,7 @@ CREATE TABLE maintenance_requests (
 -- ============================================================
 CREATE TABLE insurance_policies (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     property_id   UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
     type          VARCHAR(20) NOT NULL CHECK (type IN ('dask','kasko','konut','other')),
     company       VARCHAR(150),
@@ -180,6 +208,7 @@ CREATE TABLE insurance_policies (
   -- ============================================================
   CREATE TABLE IF NOT EXISTS documents (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     entity_type     VARCHAR(20) NOT NULL CHECK (entity_type IN ('property','tenant','contract')),
     entity_id       UUID NOT NULL,
     file_name       VARCHAR(255) NOT NULL,
@@ -195,6 +224,7 @@ CREATE TABLE insurance_policies (
   -- ============================================================
   CREATE TABLE documents (
     id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
     entity_type    VARCHAR(20) NOT NULL
              CHECK (entity_type IN ('property','tenant','contract')),
     entity_id      UUID NOT NULL,
@@ -222,6 +252,16 @@ CREATE INDEX idx_payments_due_date ON payments(due_date);
 CREATE INDEX idx_expenses_property ON expenses(property_id);
 CREATE INDEX idx_maintenance_property ON maintenance_requests(property_id);
 CREATE INDEX idx_maintenance_status ON maintenance_requests(status);
+CREATE INDEX idx_users_organization ON users(organization_id);
+CREATE INDEX idx_buildings_organization ON buildings(organization_id);
+CREATE INDEX idx_properties_organization ON properties(organization_id);
+CREATE INDEX idx_tenants_organization ON tenants(organization_id);
+CREATE INDEX idx_contracts_organization ON contracts(organization_id);
+CREATE INDEX idx_payments_organization ON payments(organization_id);
+CREATE INDEX idx_expenses_organization ON expenses(organization_id);
+CREATE INDEX idx_maintenance_organization ON maintenance_requests(organization_id);
+CREATE INDEX idx_insurance_organization ON insurance_policies(organization_id);
+CREATE INDEX idx_documents_organization ON documents(organization_id);
 CREATE INDEX idx_documents_entity ON documents(entity_type, entity_id, created_at DESC);
 CREATE INDEX idx_documents_uploaded_by ON documents(uploaded_by);
 CREATE INDEX idx_documents_entity ON documents(entity_type, entity_id);
@@ -242,7 +282,7 @@ DECLARE
   t TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    'users','buildings','properties','tenants','contracts',
+    'organizations','users','buildings','properties','tenants','contracts',
     'payments','expenses','maintenance_requests','insurance_policies','documents'
   ] LOOP
     EXECUTE format(
@@ -256,11 +296,25 @@ END;
 $$;
 
 -- ============================================================
+-- SEED: Varsayılan organizasyon
+-- ============================================================
+INSERT INTO organizations (name, slug, contact_email, subscription_plan, max_users, max_properties)
+VALUES (
+  'Varsayilan Organizasyon',
+  'varsayilan-organizasyon',
+  'admin@kiratakip.local',
+  'enterprise',
+  50,
+  1000
+);
+
+-- ============================================================
 -- SEED: Varsayılan admin kullanıcısı
 -- Şifre: Admin123! (bcrypt hash - uygulama üzerinden değiştirin)
 -- ============================================================
-INSERT INTO users (name, email, password, role)
+INSERT INTO users (organization_id, name, email, password, role)
 VALUES (
+  (SELECT id FROM organizations WHERE slug = 'varsayilan-organizasyon'),
   'Admin',
   'admin@kiratakip.local',
   '$2a$12$AQYte6kA1j/h60TNRuvk7.KizR7jB5l5HP2/qNNjLonH80885kxN6',

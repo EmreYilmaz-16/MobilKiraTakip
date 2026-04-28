@@ -92,6 +92,11 @@ export default function PaymentList() {
 
   const { fromDate, toDate } = getMonthDateRange(dueMonth);
 
+  const { data: tenants = [] } = useQuery({
+    queryKey: ['payment-filter-tenants'],
+    queryFn: () => api.get('/tenants', { params: { limit: 200 } }).then((r) => r.data)
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ['payments', status, overdueOnly, tenantName, siteName, dueMonth],
     queryFn: () => api.get('/payments', {
@@ -128,6 +133,7 @@ export default function PaymentList() {
   };
 
   const monthNames = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const tenantOptions = tenants.map((tenant) => `${tenant.first_name} ${tenant.last_name}`.trim()).filter(Boolean);
   const clearFilters = () => {
     setStatus('');
     setOverdueOnly(false);
@@ -197,10 +203,16 @@ export default function PaymentList() {
             <label className="label">Kiracı</label>
             <input
               className="input"
+              list="tenant-options"
               value={tenantName}
               onChange={(e) => setTenantName(e.target.value)}
-              placeholder="Kiracı adına göre filtrele"
+              placeholder="Kiracı seçin veya yazın"
             />
+            <datalist id="tenant-options">
+              {tenantOptions.map((tenant) => (
+                <option key={tenant} value={tenant} />
+              ))}
+            </datalist>
           </div>
 
           <div>

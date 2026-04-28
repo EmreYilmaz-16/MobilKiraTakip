@@ -44,17 +44,21 @@ const list = async (req, res, next) => {
     if (to_date)     { conditions.push(`p.due_date <= $${i++}`); params.push(to_date); }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const countRes = await query(`SELECT COUNT(*) FROM payments p ${where}`, params);
+    const baseFrom = `
+      FROM payments p
+      JOIN contracts c ON c.id = p.contract_id
+      JOIN properties pr ON pr.id = c.property_id
+      JOIN tenants t ON t.id = c.tenant_id
+    `;
+
+    const countRes = await query(`SELECT COUNT(*) ${baseFrom} ${where}`, params);
     const { rows } = await query(
       `SELECT p.*,
               pr.name AS property_name,
               pr.site_name,
               t.id AS tenant_id,
               t.first_name || ' ' || t.last_name AS tenant_name
-       FROM payments p
-       JOIN contracts c ON c.id = p.contract_id
-       JOIN properties pr ON pr.id = c.property_id
-       JOIN tenants t ON t.id = c.tenant_id
+       ${baseFrom}
        ${where}
        ORDER BY p.due_date DESC
        LIMIT $${i++} OFFSET $${i++}`,

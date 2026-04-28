@@ -8,7 +8,17 @@ const list = async (req, res, next) => {
        WHERE status = 'pending' AND due_date < CURRENT_DATE`
     );
 
-    const { status, overdue, contract_id, from_date, to_date, page = 1, limit = 20 } = req.query;
+    const {
+      status,
+      overdue,
+      contract_id,
+      tenant_name,
+      site_name,
+      from_date,
+      to_date,
+      page = 1,
+      limit = 20
+    } = req.query;
     const offset = (page - 1) * limit;
     const conditions = [];
     const params = [];
@@ -22,6 +32,14 @@ const list = async (req, res, next) => {
       params.push(status);
     }
     if (contract_id) { conditions.push(`p.contract_id = $${i++}`); params.push(contract_id); }
+    if (tenant_name) {
+      conditions.push(`(t.first_name || ' ' || t.last_name) ILIKE $${i++}`);
+      params.push(`%${tenant_name}%`);
+    }
+    if (site_name) {
+      conditions.push(`COALESCE(pr.site_name, '') ILIKE $${i++}`);
+      params.push(`%${site_name}%`);
+    }
     if (from_date)   { conditions.push(`p.due_date >= $${i++}`); params.push(from_date); }
     if (to_date)     { conditions.push(`p.due_date <= $${i++}`); params.push(to_date); }
 
@@ -30,6 +48,8 @@ const list = async (req, res, next) => {
     const { rows } = await query(
       `SELECT p.*,
               pr.name AS property_name,
+              pr.site_name,
+              t.id AS tenant_id,
               t.first_name || ' ' || t.last_name AS tenant_name
        FROM payments p
        JOIN contracts c ON c.id = p.contract_id

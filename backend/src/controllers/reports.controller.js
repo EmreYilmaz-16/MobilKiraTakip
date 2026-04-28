@@ -112,18 +112,29 @@ const propertyProfitability = async (req, res, next) => {
   try {
     const { year = new Date().getFullYear() } = req.query;
     const { rows } = await query(
-      `SELECT p.id, p.name, p.unit_number,
-              COALESCE(SUM(py.amount) FILTER (WHERE py.status = 'paid'), 0) AS income,
-              COALESCE(SUM(e.amount), 0) AS expenses,
-              COALESCE(SUM(py.amount) FILTER (WHERE py.status = 'paid'), 0)
-                - COALESCE(SUM(e.amount), 0) AS net
+      `SELECT p.id,
+              p.name,
+              p.unit_number,
+              COALESCE(pi.income, 0) AS income,
+              COALESCE(pe.expenses, 0) AS expenses,
+              COALESCE(pi.income, 0) - COALESCE(pe.expenses, 0) AS net
        FROM properties p
-       LEFT JOIN contracts c ON c.property_id = p.id
-       LEFT JOIN payments py ON py.contract_id = c.id
-         AND EXTRACT(YEAR FROM py.payment_date) = $1
-       LEFT JOIN expenses e ON e.property_id = p.id
-         AND EXTRACT(YEAR FROM e.date) = $1
-       GROUP BY p.id, p.name, p.unit_number
+       LEFT JOIN (
+         SELECT c.property_id,
+                SUM(py.amount) AS income
+         FROM contracts c
+         JOIN payments py ON py.contract_id = c.id
+         WHERE py.status = 'paid'
+           AND EXTRACT(YEAR FROM py.payment_date) = $1
+         GROUP BY c.property_id
+       ) pi ON pi.property_id = p.id
+       LEFT JOIN (
+         SELECT e.property_id,
+                SUM(e.amount) AS expenses
+         FROM expenses e
+         WHERE EXTRACT(YEAR FROM e.date) = $1
+         GROUP BY e.property_id
+       ) pe ON pe.property_id = p.id
        ORDER BY net DESC`, [year]
     );
     res.json({ success: true, data: rows });

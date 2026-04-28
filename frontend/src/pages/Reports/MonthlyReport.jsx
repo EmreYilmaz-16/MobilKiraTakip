@@ -15,15 +15,21 @@ function formatTL(value) {
 export default function MonthlyReport() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
+  const [siteName, setSiteName] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['income-expense', year],
     queryFn: () => api.get('/reports/income-expense', { params: { year } }).then((r) => r.data)
   });
 
+  const { data: properties = [] } = useQuery({
+    queryKey: ['report-sites'],
+    queryFn: () => api.get('/properties', { params: { limit: 500 } }).then((r) => r.data)
+  });
+
   const { data: profitData } = useQuery({
-    queryKey: ['profitability', year],
-    queryFn: () => api.get('/reports/profitability', { params: { year } }).then((r) => r.data)
+    queryKey: ['profitability', year, siteName],
+    queryFn: () => api.get('/reports/profitability', { params: { year, site_name: siteName || undefined } }).then((r) => r.data)
   });
 
   // Build full 12-month chart data
@@ -42,6 +48,10 @@ export default function MonthlyReport() {
   const totalIncome = chartData.reduce((s, d) => s + d.Gelir, 0);
   const totalExpense = chartData.reduce((s, d) => s + d.Gider, 0);
   const totalNet = totalIncome - totalExpense;
+  const totalProfitIncome = (profitData || []).reduce((sum, item) => sum + Number(item.income || 0), 0);
+  const totalProfitExpense = (profitData || []).reduce((sum, item) => sum + Number(item.expenses || 0), 0);
+  const totalProfitNet = totalProfitIncome - totalProfitExpense;
+  const siteOptions = [...new Set(properties.map((property) => property.site_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'tr'));
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -148,11 +158,26 @@ export default function MonthlyReport() {
       {/* Per-property profitability */}
       {profitData?.length > 0 && (
         <div className="card space-y-2">
-          <h2 className="text-sm font-semibold">{year} – Mülk Bazlı Kârlılık</h2>
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">{year} – Mülk Bazlı Kârlılık</h2>
+              <div className="text-xs text-gray-500">Mülk kârlılığını site bazında filtreleyebilirsiniz</div>
+            </div>
+            <div className="w-44">
+              <label className="label">Site</label>
+              <select className="input" value={siteName} onChange={(e) => setSiteName(e.target.value)}>
+                <option value="">Tüm Siteler</option>
+                {siteOptions.map((site) => (
+                  <option key={site} value={site}>{site}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           {profitData.map((p) => (
             <div key={p.id} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0 text-sm">
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{p.name}{p.unit_number ? ` (${p.unit_number})` : ''}</div>
+                {p.site_name && <div className="text-xs text-gray-400 truncate">{p.site_name}</div>}
                 <div className="text-xs text-gray-500">
                   Gelir: ₺{Number(p.income).toLocaleString('tr-TR')} &nbsp;|&nbsp; Gider: ₺{Number(p.expenses).toLocaleString('tr-TR')}
                 </div>
@@ -163,6 +188,17 @@ export default function MonthlyReport() {
               </div>
             </div>
           ))}
+          <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-sm font-semibold">
+            <div>
+              <div>Toplam</div>
+              <div className="text-xs font-normal text-gray-500">
+                Gelir: ₺{totalProfitIncome.toLocaleString('tr-TR')} &nbsp;|&nbsp; Gider: ₺{totalProfitExpense.toLocaleString('tr-TR')}
+              </div>
+            </div>
+            <div className={`${totalProfitNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              ₺{totalProfitNet.toLocaleString('tr-TR')}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -110,10 +110,20 @@ const incomeExpense = async (req, res, next) => {
 
 const propertyProfitability = async (req, res, next) => {
   try {
-    const { year = new Date().getFullYear() } = req.query;
+    const { year = new Date().getFullYear(), site_name } = req.query;
+    const conditions = [];
+    const params = [year];
+
+    if (site_name) {
+      conditions.push(`p.site_name ILIKE $2`);
+      params.push(`%${site_name}%`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await query(
       `SELECT p.id,
               p.name,
+              p.site_name,
               p.unit_number,
               COALESCE(pi.income, 0) AS income,
               COALESCE(pe.expenses, 0) AS expenses,
@@ -135,7 +145,8 @@ const propertyProfitability = async (req, res, next) => {
          WHERE EXTRACT(YEAR FROM e.date) = $1
          GROUP BY e.property_id
        ) pe ON pe.property_id = p.id
-       ORDER BY net DESC`, [year]
+       ${where}
+       ORDER BY net DESC`, params
     );
     res.json({ success: true, data: rows });
   } catch (err) { next(err); }

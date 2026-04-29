@@ -94,6 +94,82 @@ const create = async (req, res, next) => {
   }
 };
 
+const updateAdminCredentials = async (req, res, next) => {
+  const organizationId = String(req.params.id || '').trim();
+  const currentEmail = String(req.body.current_email || '').trim().toLowerCase();
+  const nextEmail = req.body.admin_email === undefined
+    ? null
+    : (String(req.body.admin_email || '').trim().toLowerCase() || null);
+  const nextPassword = req.body.admin_password === undefined
+    ? null
+    : String(req.body.admin_password || '');
+
+  if (!organizationId) {
+    return res.status(400).json({ success: false, message: 'Organizasyon kimliği gerekli' });
+  }
+
+  if (!currentEmail && !nextEmail) {
+    return res.status(400).json({ success: false, message: 'Güncellenecek admin e-postası gerekli' });
+  }
+
+  if (nextPassword !== null && nextPassword.length < 8) {
+    return res.status(400).json({ success: false, message: 'Admin şifresi en az 8 karakter olmalı' });
+  }
+
+  if (nextEmail === null && nextPassword === null) {
+    return res.status(400).json({ success: false, message: 'Güncellenecek admin bilgisi bulunamadı' });
+  }
+
+  const updates = [];
+  const values = [];
+
+  if (nextEmail !== null) {
+    values.push(nextEmail);
+    updates.push(`email = $${values.length}`);
+  }
+
+  if (nextPassword !== null) {
+    const passwordHash = await bcrypt.hash(nextPassword, 12);
+    values.push(passwordHash);
+    updates.push(`password = $${values.length}`);
+  }
+
+  values.push(organizationId);
+  const organizationIndex = values.length;
+  values.push(currentEmail || nextEmail);
+  const emailIndex = values.length;
+
+  try {
+    const { rows } = await query(
+      `UPDATE users
+          SET ${updates.join(', ')},
+              updated_at = NOW()
+        WHERE id = (
+          SELECT id
+          FROM users
+          WHERE organization_id = $${organizationIndex}
+            AND role = 'admin'
+            AND email = $${emailIndex}
+          ORDER BY created_at ASC
+          LIMIT 1
+        )
+        RETURNING id, organization_id, name, email, role, phone, is_active, created_at, updated_at`,
+      values
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ success: false, message: 'Güncellenecek tenant admin kullanıcısı bulunamadı' });
+    }
+
+    return res.json({ success: true, data: rows[0] });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ success: false, message: 'Admin e-postası zaten kullanımda' });
+    }
+    return next(error);
+  }
+};
+
 const remove = async (req, res, next) => {
   const organizationId = String(req.params.id || '').trim();
   if (!organizationId) {
@@ -121,4 +197,4 @@ const remove = async (req, res, next) => {
   }
 };
 
-module.exports = { create, remove };
+module.exports = { create, updateAdminCredentials, remove };

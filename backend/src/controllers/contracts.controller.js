@@ -1,12 +1,19 @@
 const { query, getClient } = require('../config/database');
+const { AUDIT_EVENT_TYPES } = require('../utils/organizationAudit');
+const {
+  ensureEntitiesBelongToOrganization,
+  ensureEntityBelongsToOrganization,
+  recordOrganizationAuditEvent
+} = require('../utils/organization');
 
 const list = async (req, res, next) => {
   try {
+    const organizationId = req.organizationId;
     const { status, property_id, tenant_id, expiry_filter, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
-    const conditions = [];
-    const params = [];
-    let i = 1;
+    const conditions = [`c.organization_id = $1`];
+    const params = [organizationId];
+    let i = 2;
 
     if (status)      { conditions.push(`c.status = $${i++}`); params.push(status); }
     if (property_id) { conditions.push(`c.property_id = $${i++}`); params.push(property_id); }
@@ -26,7 +33,7 @@ const list = async (req, res, next) => {
               t.first_name || ' ' || t.last_name AS tenant_name, t.phone AS tenant_phone
        FROM contracts c
        JOIN properties p ON p.id = c.property_id
-       JOIN tenants t ON t.id = c.tenant_id
+      JOIN tenants t ON t.id = c.tenant_id AND t.organization_id = c.organization_id
        ${where}
        ORDER BY c.start_date DESC
        LIMIT $${i++} OFFSET $${i++}`,
@@ -43,6 +50,7 @@ const list = async (req, res, next) => {
 
 const get = async (req, res, next) => {
   try {
+    const organizationId = req.organizationId;
     const { rows } = await query(
       `SELECT c.*,
               p.name AS property_name, p.unit_number,
@@ -50,14 +58,14 @@ const get = async (req, res, next) => {
               t.phone AS tenant_phone, t.email AS tenant_email
        FROM contracts c
        JOIN properties p ON p.id = c.property_id
-       JOIN tenants t ON t.id = c.tenant_id
-       WHERE c.id = $1`, [req.params.id]
+       JOIN tenants t ON t.id = c.tenant_id AND t.organization_id = c.organization_id
+       WHERE c.id = $1 AND c.organization_id = $2`, [req.params.id, organizationId]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Sözleşme bulunamadı' });
 
     const { rows: payments } = await query(
-      'SELECT * FROM payments WHERE contract_id = $1 ORDER BY due_date DESC',
-      [req.params.id]
+      'SELECT * FROM payments WHERE contract_id = $1 AND organization_id = $2 ORDER BY due_date DESC',
+      [req.params.id, organizationId]
     );
 
     res.json({ success: true, data: { ...rows[0], payments } });
@@ -67,6 +75,8 @@ const get = async (req, res, next) => {
 const create = async (req, res, next) => {
   const client = await getClient();
   try {
+    const organizationId = req.organizationId;
+    const db = client.query.bind(client);
     await client.query('BEGIN');
     const { property_id, tenant_id, start_date, end_date, monthly_rent,
             deposit_amount, increase_type, increase_rate, special_terms, eviction_date,
@@ -75,26 +85,48 @@ const create = async (req, res, next) => {
     // Çakışan aktif sözleşme kontrolü
     const conflict = await client.query(
       `SELECT id FROM contracts
-       WHERE property_id = $1 AND status = 'active'
+       WHERE property_id = $1 AND organization_id = $4 AND status = 'active'
          AND daterange(start_date, end_date, '[]') && daterange($2::date, $3::date, '[]')`,
-      [property_id, start_date, end_date]
+      [property_id, start_date, end_date, organizationId]
     );
     if (conflict.rows.length) {
       await client.query('ROLLBACK');
       return res.status(409).json({ success: false, message: 'Bu mülk için çakışan aktif sözleşme var' });
     }
 
+    await ensureEntitiesBelongToOrganization({
+      organizationId,
+      db,
+      entities: [
+        { tableName: 'properties', entityId: property_id, message: 'Mulk bulunamadi' },
+        { tableName: 'tenants', entityId: tenant_id, message: 'Kiraci bulunamadi' }
+      ]
+    });
+
     const { rows } = await client.query(
-      `INSERT INTO contracts (property_id, tenant_id, start_date, end_date, monthly_rent,
+      `INSERT INTO contracts (organization_id, property_id, tenant_id, start_date, end_date, monthly_rent,
         deposit_amount, increase_type, increase_rate, special_terms, eviction_date, payment_day)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [property_id, tenant_id, start_date, end_date, monthly_rent,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [organizationId, property_id, tenant_id, start_date, end_date, monthly_rent,
        deposit_amount || 0, increase_type || 'tüfe', increase_rate || null,
        special_terms || null, eviction_date || null, payment_day || 1]
     );
 
     // Mülk durumunu "rented" yap
-    await client.query(`UPDATE properties SET status = 'rented' WHERE id = $1`, [property_id]);
+    await client.query(`UPDATE properties SET status = 'rented' WHERE id = $1 AND organization_id = $2`, [property_id, organizationId]);
+
+    await recordOrganizationAuditEvent({
+      organizationId,
+      actorUserId: req.user?.id || null,
+      eventType: AUDIT_EVENT_TYPES.CONTRACT_CREATED,
+      entityType: 'contract',
+      entityId: rows[0].id,
+      title: `Sozlesme #${rows[0].id.slice(0, 8)}`,
+      description: `Aylik kira: ${rows[0].monthly_rent}`,
+      metadata: { property_id, tenant_id, monthly_rent: rows[0].monthly_rent },
+      occurredAt: rows[0].created_at,
+      db
+    });
 
     await client.query('COMMIT');
     res.status(201).json({ success: true, data: rows[0] });
@@ -108,6 +140,7 @@ const create = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   try {
+    const organizationId = req.organizationId;
     const { end_date, monthly_rent, deposit_amount, increase_type,
             increase_rate, special_terms, eviction_date, status, payment_day } = req.body;
     const { rows } = await query(
@@ -121,11 +154,21 @@ const update = async (req, res, next) => {
         eviction_date = COALESCE($7, eviction_date),
         status = COALESCE($8, status),
         payment_day = COALESCE($9, payment_day)
-       WHERE id = $10 RETURNING *`,
+       WHERE id = $10 AND organization_id = $11 RETURNING *`,
       [end_date, monthly_rent, deposit_amount, increase_type,
-       increase_rate, special_terms, eviction_date, status, payment_day || null, req.params.id]
+       increase_rate, special_terms, eviction_date, status, payment_day || null, req.params.id, organizationId]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Sözleşme bulunamadı' });
+    await recordOrganizationAuditEvent({
+      organizationId,
+      actorUserId: req.user?.id || null,
+      eventType: AUDIT_EVENT_TYPES.CONTRACT_UPDATED,
+      entityType: 'contract',
+      entityId: rows[0].id,
+      title: `Sozlesme #${rows[0].id.slice(0, 8)}`,
+      description: 'Sozlesme guncellendi',
+      metadata: { status: rows[0].status, monthly_rent: rows[0].monthly_rent }
+    });
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };
@@ -134,6 +177,8 @@ const update = async (req, res, next) => {
 const terminate = async (req, res, next) => {
   const client = await getClient();
   try {
+    const organizationId = req.organizationId;
+    const db = client.query.bind(client);
     await client.query('BEGIN');
 
     const {
@@ -147,7 +192,7 @@ const terminate = async (req, res, next) => {
 
     // Sözleşmeyi getir
     const { rows: existing } = await client.query(
-      'SELECT * FROM contracts WHERE id = $1', [req.params.id]
+      'SELECT * FROM contracts WHERE id = $1 AND organization_id = $2', [req.params.id, organizationId]
     );
     if (!existing.length) {
       await client.query('ROLLBACK');
@@ -173,26 +218,51 @@ const terminate = async (req, res, next) => {
          deposit_return_amount = $4,
          termination_notes = $5,
          updated_at = NOW()
-       WHERE id = $6 RETURNING *`,
-      [termination_type, depositReturned, safeReturnDate, returnAmount, safeNotes, req.params.id]
+       WHERE id = $6 AND organization_id = $7 RETURNING *`,
+      [termination_type, depositReturned, safeReturnDate, returnAmount, safeNotes, req.params.id, organizationId]
     );
 
     // Hasar tazminatı varsa → ödeme tablosuna gelir kaydı düş (zaten tahsil edildi)
     if (damageAmount > 0) {
       const today = new Date().toISOString().split('T')[0];
       await client.query(
-        `INSERT INTO payments (contract_id, amount, due_date, payment_date, status, notes)
-         VALUES ($1, $2, $3, $3, 'paid', $4)`,
-        [req.params.id, damageAmount, today,
+        `INSERT INTO payments (organization_id, contract_id, amount, due_date, payment_date, status, notes)
+         VALUES ($1, $2, $3, $4, $4, 'paid', $5)`,
+        [organizationId, req.params.id, damageAmount, today,
          `Depozito mahsubu — hasar/eksiklik tazminatı (toplam depozito: ₺${depositAmount}, iade: ₺${returnAmount})`]
       );
+
+      await recordOrganizationAuditEvent({
+        organizationId,
+        actorUserId: req.user?.id || null,
+        eventType: AUDIT_EVENT_TYPES.PAYMENT_RECORDED,
+        entityType: 'payment',
+        entityId: null,
+        title: `Hasar tahsilati #${req.params.id.slice(0, 8)}`,
+        description: `Depozito mahsup tutari: ${damageAmount}`,
+        metadata: { amount: damageAmount, contract_id: req.params.id, auto_generated: true },
+        occurredAt: today,
+        db
+      });
     }
 
     // Mülkü boşa çıkar
     await client.query(
-      `UPDATE properties SET status = 'available', updated_at = NOW() WHERE id = $1`,
-      [existing[0].property_id]
+      `UPDATE properties SET status = 'available', updated_at = NOW() WHERE id = $1 AND organization_id = $2`,
+      [existing[0].property_id, organizationId]
     );
+
+    await recordOrganizationAuditEvent({
+      organizationId,
+      actorUserId: req.user?.id || null,
+      eventType: AUDIT_EVENT_TYPES.CONTRACT_TERMINATED,
+      entityType: 'contract',
+      entityId: rows[0].id,
+      title: `Sozlesme #${rows[0].id.slice(0, 8)}`,
+      description: 'Sozlesme sonlandirildi',
+      metadata: { termination_type, damage_amount: damageAmount },
+      db
+    });
 
     await client.query('COMMIT');
     res.json({

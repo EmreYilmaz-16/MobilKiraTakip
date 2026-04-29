@@ -1,11 +1,13 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/expenses.controller');
 const { auth } = require('../middleware/auth');
+const { requireOrganizationContext, requireWritableOrganization } = require('../middleware/organization');
 
 router.use(auth);
+router.use(requireOrganizationContext());
 router.get('/', ctrl.list);
-router.post('/', ctrl.create);
-router.put('/:id', ctrl.update);
-router.delete('/:id', ctrl.remove);
+router.post('/', requireWritableOrganization(), ctrl.create);
+router.put('/:id', requireWritableOrganization(), ctrl.update);
+router.delete('/:id', requireWritableOrganization(), ctrl.remove);
 
 module.exports = router;

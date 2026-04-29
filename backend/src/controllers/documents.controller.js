@@ -2,6 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { query } = require('../config/database');
+const { AUDIT_EVENT_TYPES } = require('../utils/organizationAudit');
+const {
+  ensureEntityBelongsToOrganization,
+  deleteEntityBelongingToOrganization,
+  recordOrganizationAuditEvent,
+  createAppError
+} = require('../utils/organization');
 
 const uploadDir = path.resolve(__dirname, '../../uploads/documents');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -25,39 +32,33 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 }
 });
 
-const ensureEntityExists = async (entityType, entityId) => {
+const ensureEntityExists = async (entityType, entityId, organizationId) => {
   const tableName = entityTableMap[entityType];
 
   if (!tableName) {
-    const err = new Error('Geçersiz belge türü');
-    err.status = 400;
-    throw err;
+    throw createAppError('Geçersiz belge türü', 400);
   }
 
-  const { rows } = await query(`SELECT id FROM ${tableName} WHERE id = $1`, [entityId]);
-  if (!rows.length) {
-    const err = new Error('İlişkili kayıt bulunamadı');
-    err.status = 404;
-    throw err;
-  }
+  return ensureEntityBelongsToOrganization({ tableName, entityId, organizationId, message: 'İlişkili kayıt bulunamadı' });
 };
 
 const list = async (req, res, next) => {
   try {
+    const organizationId = req.organizationId;
     const { entity_type, entity_id } = req.query;
 
     if (!entity_type || !entity_id) {
       return res.status(400).json({ success: false, message: 'entity_type ve entity_id gerekli' });
     }
 
-    await ensureEntityExists(entity_type, entity_id);
+    await ensureEntityExists(entity_type, entity_id, organizationId);
 
     const { rows } = await query(
       `SELECT id, entity_type, entity_id, original_name, mime_type, file_size, created_at
        FROM documents
-       WHERE entity_type = $1 AND entity_id = $2
+       WHERE organization_id = $1 AND entity_type = $2 AND entity_id = $3
        ORDER BY created_at DESC`,
-      [entity_type, entity_id]
+      [organizationId, entity_type, entity_id]
     );
 
     res.json({
@@ -74,6 +75,7 @@ const list = async (req, res, next) => {
 
 const uploadDocument = async (req, res, next) => {
   try {
+    const organizationId = req.organizationId;
     const { entity_type, entity_id } = req.body;
 
     if (!entity_type || !entity_id) {
@@ -83,13 +85,14 @@ const uploadDocument = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Dosya seçilmedi' });
     }
 
-    await ensureEntityExists(entity_type, entity_id);
+    await ensureEntityExists(entity_type, entity_id, organizationId);
 
     const { rows } = await query(
-      `INSERT INTO documents (entity_type, entity_id, file_name, original_name, mime_type, file_size, uploaded_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO documents (organization_id, entity_type, entity_id, file_name, original_name, mime_type, file_size, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, entity_type, entity_id, original_name, mime_type, file_size, created_at`,
       [
+        organizationId,
         entity_type,
         entity_id,
         req.file.filename,
@@ -107,6 +110,17 @@ const uploadDocument = async (req, res, next) => {
         download_url: `/api/v1/documents/${rows[0].id}/download`
       }
     });
+
+    await recordOrganizationAuditEvent({
+      organizationId,
+      actorUserId: req.user?.id || null,
+      eventType: AUDIT_EVENT_TYPES.DOCUMENT_UPLOADED,
+      entityType: 'document',
+      entityId: rows[0].id,
+      title: rows[0].original_name,
+      description: `${entity_type} kaydina belge yuklendi`,
+      metadata: { entity_type, entity_id, file_size: rows[0].file_size }
+    });
   } catch (err) {
     if (req.file?.path) {
       fs.rmSync(req.file.path, { force: true });
@@ -117,7 +131,8 @@ const uploadDocument = async (req, res, next) => {
 
 const download = async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
+    const organizationId = req.organizationId;
+    const { rows } = await query('SELECT * FROM documents WHERE id = $1 AND organization_id = $2', [req.params.id, organizationId]);
     if (!rows.length) {
       return res.status(404).json({ success: false, message: 'Belge bulunamadı' });
     }
@@ -137,13 +152,21 @@ const download = async (req, res, next) => {
 
 const remove = async (req, res, next) => {
   try {
-    const { rows } = await query('DELETE FROM documents WHERE id = $1 RETURNING *', [req.params.id]);
-    if (!rows.length) {
-      return res.status(404).json({ success: false, message: 'Belge bulunamadı' });
-    }
-
-    const filePath = path.join(uploadDir, rows[0].file_name);
+    const organizationId = req.organizationId;
+    const removed = await deleteEntityBelongingToOrganization({ tableName: 'documents', entityId: req.params.id, organizationId, returningClause: '*', message: 'Belge bulunamadı' });
+    const filePath = path.join(uploadDir, removed.file_name);
     fs.rmSync(filePath, { force: true });
+
+    await recordOrganizationAuditEvent({
+      organizationId,
+      actorUserId: req.user?.id || null,
+      eventType: AUDIT_EVENT_TYPES.DOCUMENT_DELETED,
+      entityType: 'document',
+      entityId: removed.id,
+      title: removed.original_name,
+      description: 'Belge silindi',
+      metadata: { entity_type: removed.entity_type, entity_id: removed.entity_id }
+    });
 
     res.json({ success: true, message: 'Belge silindi' });
   } catch (err) {

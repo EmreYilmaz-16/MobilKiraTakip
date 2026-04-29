@@ -1,11 +1,18 @@
 const { query } = require('../config/database');
+const { AUDIT_EVENT_TYPES } = require('../utils/organizationAudit');
+const {
+  ensureEntityBelongsToOrganization,
+  recordOrganizationAuditEvent
+} = require('../utils/organization');
 
 const list = async (req, res, next) => {
   try {
+    const organizationId = req.organizationId;
     // Vadesi geçmiş pending ödemeleri otomatik "late" yap
     await query(
       `UPDATE payments SET status = 'late'
-       WHERE status = 'pending' AND due_date < CURRENT_DATE`
+       WHERE organization_id = $1 AND status = 'pending' AND due_date < CURRENT_DATE`,
+      [organizationId]
     );
 
     const {
@@ -20,9 +27,9 @@ const list = async (req, res, next) => {
       limit = 20
     } = req.query;
     const offset = (page - 1) * limit;
-    const conditions = [];
-    const params = [];
-    let i = 1;
+    const conditions = [`p.organization_id = $1`];
+    const params = [organizationId];
+    let i = 2;
 
     if (overdue === 'true') {
       conditions.push(`p.status IN ('late','pending')`);
@@ -75,19 +82,39 @@ const list = async (req, res, next) => {
 
 const create = async (req, res, next) => {
   try {
+    const organizationId = req.organizationId;
     const { contract_id, amount, due_date, payment_date, status, method, reference_no, notes } = req.body;
+
+    await ensureEntityBelongsToOrganization({
+      tableName: 'contracts',
+      entityId: contract_id,
+      organizationId,
+      message: 'Sozlesme bulunamadi'
+    });
+
     const { rows } = await query(
-      `INSERT INTO payments (contract_id, amount, due_date, payment_date, status, method, reference_no, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [contract_id, amount, due_date, payment_date || null,
+      `INSERT INTO payments (organization_id, contract_id, amount, due_date, payment_date, status, method, reference_no, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [organizationId, contract_id, amount, due_date, payment_date || null,
        status || 'pending', method || null, reference_no || null, notes || null]
     );
+    await recordOrganizationAuditEvent({
+      organizationId,
+      actorUserId: req.user?.id || null,
+      eventType: AUDIT_EVENT_TYPES.PAYMENT_RECORDED,
+      entityType: 'payment',
+      entityId: rows[0].id,
+      title: `Odeme #${rows[0].id.slice(0, 8)}`,
+      description: `Durum: ${rows[0].status} • Tutar: ${rows[0].amount}`,
+      metadata: { amount: rows[0].amount, status: rows[0].status, contract_id }
+    });
     res.status(201).json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };
 
 const markPaid = async (req, res, next) => {
   try {
+    const organizationId = req.organizationId;
     const { payment_date, method, reference_no, notes } = req.body;
     const { rows } = await query(
       `UPDATE payments SET
@@ -96,16 +123,27 @@ const markPaid = async (req, res, next) => {
         method = COALESCE($2, method),
         reference_no = COALESCE($3, reference_no),
         notes = COALESCE($4, notes)
-       WHERE id = $5 RETURNING *`,
-      [payment_date, method, reference_no, notes, req.params.id]
+       WHERE id = $5 AND organization_id = $6 RETURNING *`,
+      [payment_date, method, reference_no, notes, req.params.id, organizationId]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Ödeme bulunamadı' });
+    await recordOrganizationAuditEvent({
+      organizationId,
+      actorUserId: req.user?.id || null,
+      eventType: AUDIT_EVENT_TYPES.PAYMENT_MARKED_PAID,
+      entityType: 'payment',
+      entityId: rows[0].id,
+      title: `Odeme #${rows[0].id.slice(0, 8)}`,
+      description: `Odeme tahsil edildi • Tutar: ${rows[0].amount}`,
+      metadata: { amount: rows[0].amount, method: rows[0].method, status: rows[0].status }
+    });
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };
 
 const generateMonthly = async (req, res, next) => {
   try {
+    const organizationId = req.organizationId;
     // Aktif sözleşmeler için belirtilen ay/yıl'da tahakkuk oluştur
     const { year, month } = req.body;
     if (!year || !month) return res.status(400).json({ success: false, message: 'year ve month gerekli' });
@@ -116,10 +154,11 @@ const generateMonthly = async (req, res, next) => {
 
     const { rows: contracts } = await query(
       `SELECT id, monthly_rent, COALESCE(payment_day, 1) AS payment_day FROM contracts
-       WHERE status = 'active'
+       WHERE organization_id = $3
+         AND status = 'active'
          AND start_date <= $2::date
          AND end_date   >= $1::date`,
-      [firstOfMonth, lastOfMonth]
+      [firstOfMonth, lastOfMonth, organizationId]
     );
 
     let created = 0;
@@ -130,16 +169,26 @@ const generateMonthly = async (req, res, next) => {
       const dueDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
       const exists = await query(
-        `SELECT id FROM payments WHERE contract_id = $1
-         AND date_trunc('month', due_date) = date_trunc('month', $2::date)`,
-        [c.id, dueDate]
+        `SELECT id FROM payments WHERE contract_id = $1 AND organization_id = $2
+         AND date_trunc('month', due_date) = date_trunc('month', $3::date)` ,
+        [c.id, organizationId, dueDate]
       );
       if (!exists.rows.length) {
         await query(
-          `INSERT INTO payments (contract_id, amount, due_date, status)
-           VALUES ($1, $2, $3, 'pending')`,
-          [c.id, c.monthly_rent, dueDate]
+          `INSERT INTO payments (organization_id, contract_id, amount, due_date, status)
+           VALUES ($1, $2, $3, $4, 'pending')`,
+          [organizationId, c.id, c.monthly_rent, dueDate]
         );
+        await recordOrganizationAuditEvent({
+          organizationId,
+          actorUserId: req.user?.id || null,
+          eventType: AUDIT_EVENT_TYPES.PAYMENT_RECORDED,
+          entityType: 'payment',
+          entityId: null,
+          title: `Aylik tahakkuk • Sozlesme #${c.id.slice(0, 8)}`,
+          description: `Tutar: ${c.monthly_rent} • Vade: ${dueDate}`,
+          metadata: { amount: c.monthly_rent, contract_id: c.id, due_date: dueDate, generated: true }
+        });
         created++;
       }
     }

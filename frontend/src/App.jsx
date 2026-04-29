@@ -19,10 +19,22 @@ import MarketPriceList from './pages/MarketPrices/MarketPriceList';
 import TaxList from './pages/Taxes/TaxList';
 import IncomeList from './pages/Income/IncomeList';
 import MoreMenu from './pages/More/MoreMenu';
+import OrganizationManagement from './pages/Organizations/OrganizationManagement';
+import OrganizationOverview from './pages/Organizations/OrganizationOverview';
 
 const PrivateRoute = ({ children }) => {
   const token = useAuthStore((s) => s.token);
   return token ? children : <Navigate to="/login" replace />;
+};
+
+const RoleRoute = ({ children, roles }) => {
+  const user = useAuthStore((s) => s.user);
+  return roles.includes(user?.role) ? children : <Navigate to="/" replace />;
+};
+
+const PlatformAdminRoute = ({ children }) => {
+  const user = useAuthStore((s) => s.user);
+  return user?.role === 'platform_admin' ? children : <Navigate to="/organization" replace />;
 };
 
 export default function App() {
@@ -30,6 +42,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/super-admin/login" element={<Login mode="platform_admin" />} />
         <Route
           path="/"
           element={
@@ -58,6 +71,22 @@ export default function App() {
           <Route path="taxes" element={<TaxList />} />
           <Route path="income" element={<IncomeList />} />
           <Route path="more" element={<MoreMenu />} />
+          <Route
+            path="organization"
+            element={
+              <RoleRoute roles={['admin', 'platform_admin']}>
+                <OrganizationOverview />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="organizations"
+            element={
+              <PlatformAdminRoute>
+                <OrganizationManagement />
+              </PlatformAdminRoute>
+            }
+          />
         </Route>
       </Routes>
     </BrowserRouter>

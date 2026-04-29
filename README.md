@@ -16,9 +16,12 @@ docker compose up -d --build
 http://localhost
 ```
 
+`docker compose up` sırasında `migrate` servisi, yeniden kullanılan local PostgreSQL volume'larında eksik kalan `007`–`013` migration dosyalarını backend ayağa kalkmadan önce idempotent olarak uygular.
+
 **Varsayılan giriş:**
 - E-posta: `admin@kiratakip.local`
 - Şifre: `Admin123!`
+
 
 > İlk girişten sonra şifrenizi değiştirin: Ayarlar → Şifre Değiştir
 

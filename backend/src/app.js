@@ -21,6 +21,8 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // Security
 app.use(helmet());
 
@@ -57,6 +59,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // API Routes
 app.use('/api/v1/auth', authRoutes);

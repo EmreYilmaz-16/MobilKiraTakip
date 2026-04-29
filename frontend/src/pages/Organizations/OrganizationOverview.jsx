@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, BadgeCheck, Building2, CalendarClock, CreditCard, Home, KeyRound, Pencil, Plus, Power, Search, Shield, Users } from 'lucide-react';
+import { BadgeCheck, Building2, CalendarClock, CreditCard, Home, KeyRound, Pencil, Plus, Power, Search, Shield, Users } from 'lucide-react';
 import api from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 
@@ -32,14 +32,6 @@ const createManagedUserFormState = (entry) => ({
   role: entry?.role || 'owner',
   newPassword: ''
 });
-
-const auditPresets = [
-  { key: 'all', label: 'Tümü', filters: {} },
-  { key: 'users', label: 'Kullanıcılar', filters: { event_type: 'user_created', entity_type: 'user' } },
-  { key: 'properties', label: 'Mülkler', filters: { event_type: 'property_created', entity_type: 'property' } },
-  { key: 'contracts', label: 'Sözleşmeler', filters: { event_type: 'contract_created', entity_type: 'contract' } },
-  { key: 'payments', label: 'Tahsilatlar', filters: { event_type: 'payment_recorded', entity_type: 'payment' } }
-];
 
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString('tr-TR') : '-');
 
@@ -97,8 +89,6 @@ export default function OrganizationOverview() {
   const qc = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const organizationId = user?.organization_id;
-  const [auditPresetKey, setAuditPresetKey] = useState('all');
-  const [auditPage, setAuditPage] = useState(1);
   const [requestedPlan, setRequestedPlan] = useState('pro');
   const [requestNote, setRequestNote] = useState('');
   const [userForm, setUserForm] = useState(createUserFormState);
@@ -106,11 +96,6 @@ export default function OrganizationOverview() {
   const [managedUserForm, setManagedUserForm] = useState(createManagedUserFormState(null));
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('all');
-
-  const selectedPreset = useMemo(
-    () => auditPresets.find((preset) => preset.key === auditPresetKey) || auditPresets[0],
-    [auditPresetKey]
-  );
 
   const { data: organization, isLoading: isOrganizationLoading } = useQuery({
     queryKey: ['organization-overview', organizationId],
@@ -122,14 +107,6 @@ export default function OrganizationOverview() {
     queryKey: ['organization-overview-activity', organizationId],
     enabled: Boolean(organizationId),
     queryFn: () => api.get(`/organizations/${organizationId}/activity`).then((response) => response.data)
-  });
-
-  const { data: auditData, isFetching: isAuditLoading } = useQuery({
-    queryKey: ['organization-overview-audit', organizationId, auditPresetKey, auditPage],
-    enabled: Boolean(organizationId),
-    queryFn: () => api.get(`/organizations/${organizationId}/audit`, {
-      params: { ...selectedPreset.filters, page: auditPage, limit: 8 }
-    })
   });
 
   const { data: subscriptionHistoryData, isLoading: isSubscriptionHistoryLoading } = useQuery({
@@ -146,11 +123,7 @@ export default function OrganizationOverview() {
 
   const usage = activityData?.usage || {};
   const usageHistory = activityData?.usage_history || [];
-  const recentActivity = activityData?.recent_activity || [];
   const currentMonth = usageHistory[0] || null;
-  const auditRows = auditData?.data || [];
-  const auditMeta = auditData?.meta || { page: 1, total_pages: 1 };
-  const auditSummary = auditData?.summary || { total: 0, event_type_count: 0, entity_type_count: 0, last_event_at: null };
   const subscriptionHistory = subscriptionHistoryData || [];
   const estimatedMonthlyPrice = planPrices[organization?.subscription_plan] || 0;
   const renewalDate = organization?.trial_ends_at || organization?.created_at;
@@ -179,8 +152,6 @@ export default function OrganizationOverview() {
     mutationFn: (payload) => api.post(`/organizations/${organizationId}/plan-request`, payload),
     onSuccess: () => {
       setRequestNote('');
-      qc.invalidateQueries({ queryKey: ['organization-overview-activity', organizationId] });
-      qc.invalidateQueries({ queryKey: ['organization-overview-audit', organizationId] });
       qc.invalidateQueries({ queryKey: ['organization-subscription-history', organizationId] });
     }
   });
@@ -191,8 +162,6 @@ export default function OrganizationOverview() {
       setUserForm(createUserFormState());
       qc.invalidateQueries({ queryKey: ['organization-users', organizationId] });
       qc.invalidateQueries({ queryKey: ['organization-overview', organizationId] });
-      qc.invalidateQueries({ queryKey: ['organization-overview-activity', organizationId] });
-      qc.invalidateQueries({ queryKey: ['organization-overview-audit', organizationId] });
     }
   });
 
@@ -200,8 +169,6 @@ export default function OrganizationOverview() {
     mutationFn: ({ userId, payload }) => api.put(`/auth/users/${userId}`, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['organization-users', organizationId] });
-      qc.invalidateQueries({ queryKey: ['organization-overview-audit', organizationId] });
-      qc.invalidateQueries({ queryKey: ['organization-overview-activity', organizationId] });
     }
   });
 
@@ -213,8 +180,6 @@ export default function OrganizationOverview() {
         setManagedUserForm(createManagedUserFormState(null));
       }
       qc.invalidateQueries({ queryKey: ['organization-users', organizationId] });
-      qc.invalidateQueries({ queryKey: ['organization-overview-audit', organizationId] });
-      qc.invalidateQueries({ queryKey: ['organization-overview-activity', organizationId] });
     }
   });
 
@@ -222,7 +187,6 @@ export default function OrganizationOverview() {
     mutationFn: ({ userId, newPassword }) => api.put(`/auth/users/${userId}/reset-password`, { newPassword }),
     onSuccess: () => {
       setManagedUserForm((current) => ({ ...current, newPassword: '' }));
-      qc.invalidateQueries({ queryKey: ['organization-overview-audit', organizationId] });
     }
   });
 
@@ -497,7 +461,7 @@ export default function OrganizationOverview() {
           <div className="flex items-center gap-2 text-sm font-semibold text-gray-800"><CreditCard size={16} className="text-primary-600" /> Abonelik ve Yükseltme</div>
           <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
             <div>Mevcut paket: <span className="font-semibold uppercase text-gray-900">{organization?.subscription_plan}</span></div>
-            <div className="mt-2 text-xs text-gray-500">Paket yükseltme talebiniz audit akışına düşer ve super admin panelinde görünür.</div>
+            <div className="mt-2 text-xs text-gray-500">Paket yükseltme talebiniz yönetim onayına gönderilir ve sonuç size bu ekran üzerinden yansır.</div>
           </div>
           <div className="mt-4 space-y-3">
             <div>
@@ -599,92 +563,6 @@ export default function OrganizationOverview() {
         )}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800"><Activity size={16} className="text-primary-600" /> Son Aktiviteler</div>
-          <div className="mt-4 space-y-3">
-            {recentActivity.map((entry) => (
-              <div key={`${entry.type}-${entry.id}-${entry.occurred_at}`} className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{entry.title}</div>
-                    <div className="mt-1 text-xs uppercase tracking-wide text-primary-600">{entry.event_label || entry.type}</div>
-                  </div>
-                  <div className="text-xs text-gray-500">{formatDateTime(entry.occurred_at)}</div>
-                </div>
-                <div className="mt-2 text-xs text-gray-500">{formatActorLabel(entry)}</div>
-                <div className="mt-2 text-sm text-gray-700">{entry.description}</div>
-              </div>
-            ))}
-            {!recentActivity.length && <div className="text-sm text-gray-500">Henüz aktivite bulunmuyor.</div>}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800"><Activity size={16} className="text-primary-600" /> Audit Akışı</div>
-              <div className="mt-1 text-xs text-gray-500">Toplam {auditSummary.total} kayıt • Son kayıt {formatDateTime(auditSummary.last_event_at)}</div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {auditPresets.map((preset) => (
-                <button
-                  key={preset.key}
-                  type="button"
-                  onClick={() => {
-                    setAuditPresetKey(preset.key);
-                    setAuditPage(1);
-                  }}
-                  className={`rounded-full px-3 py-1.5 text-xs ${auditPresetKey === preset.key ? 'bg-primary-600 text-white' : 'border border-gray-200 text-gray-600'}`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {isAuditLoading ? (
-            <div className="mt-4 text-sm text-gray-500">Audit kayıtları yükleniyor...</div>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {auditRows.map((entry) => (
-                <div key={entry.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">{entry.title}</div>
-                      <div className="mt-1 text-xs uppercase tracking-wide text-primary-600">{entry.event_label || entry.event_type}</div>
-                    </div>
-                    <div className="text-xs text-gray-500">{formatDateTime(entry.created_at)}</div>
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500">{formatActorLabel(entry)}</div>
-                  <div className="mt-2 text-sm text-gray-700">{entry.description}</div>
-                </div>
-              ))}
-              {!auditRows.length && <div className="text-sm text-gray-500">Bu filtre için audit kaydı bulunmuyor.</div>}
-            </div>
-          )}
-
-          <div className="mt-4 flex items-center justify-between text-sm">
-            <button
-              type="button"
-              onClick={() => setAuditPage((current) => Math.max(1, current - 1))}
-              disabled={auditMeta.page <= 1}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Önceki
-            </button>
-            <div className="text-gray-500">Sayfa {auditMeta.page} / {Math.max(1, auditMeta.total_pages || 1)}</div>
-            <button
-              type="button"
-              onClick={() => setAuditPage((current) => Math.min(Math.max(1, auditMeta.total_pages || 1), current + 1))}
-              disabled={auditMeta.page >= Math.max(1, auditMeta.total_pages || 1)}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Sonraki
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

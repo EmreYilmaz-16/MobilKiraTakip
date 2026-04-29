@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 import {
   Wallet, Wrench, ReceiptText, BarChart3,
-  TrendingUp, Scale, LineChart, FileCheck2, BadgeDollarSign
+  TrendingUp, Scale, LineChart, FileCheck2, BadgeDollarSign, Building2
 } from 'lucide-react';
 
 const menuItems = [
@@ -18,11 +19,26 @@ const menuItems = [
 
 export default function MoreMenu() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const isOrganizationPageVisible = user?.role === 'admin' || user?.role === 'platform_admin';
+  const visibleItems = isOrganizationPageVisible
+    ? [
+        ...menuItems,
+        {
+          to: user?.role === 'platform_admin' ? '/organizations' : '/organization',
+          icon: Building2,
+          label: user?.role === 'platform_admin' ? 'Organizasyonlar' : 'Organizasyonum',
+          bg: 'bg-slate-50',
+          text: 'text-slate-700'
+        }
+      ]
+    : menuItems;
+
   return (
     <div className="space-y-3">
       <h1 className="text-xl font-bold">Daha Fazla</h1>
       <div className="grid grid-cols-2 gap-3">
-        {menuItems.map(({ to, icon: Icon, label, bg, text }) => (
+        {visibleItems.map(({ to, icon: Icon, label, bg, text }) => (
           <button
             key={to}
             onClick={() => navigate(to)}
